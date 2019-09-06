@@ -1,6 +1,6 @@
-(ns game-server.core-test
+(ns snow-hall.core-test
   (:require [clojure.test :refer :all]
-            [game-server.core :refer :all]))
+            [snow-hall.core :refer :all]))
 
 (deftest a-test
   (testing "FIXME, I fail."
