@@ -10,5 +10,7 @@
                  [org.clojure/data.json "0.2.6"]]
   :main ^:skip-aot snow-hall.core
   :target-path "target/%s"
+  :source-paths ["src/clojure"]
+  :java-source-paths ["src/java"]
   :javac-options ["-target" "11" "-source" "11"]
   :profiles {:uberjar {:aot :all}})
