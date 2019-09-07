@@ -11,6 +11,7 @@
   :main ^:skip-aot snow-hall.core
   :target-path "target/%s"
   :source-paths ["src/clojure"]
+  :test-paths ["test/clojure"]
   :java-source-paths ["src/java"]
   :javac-options ["-target" "11" "-source" "11"]
   :profiles {:uberjar {:aot :all}})

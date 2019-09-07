@@ -5,10 +5,9 @@
     [compojure.route :as route]
     [ring.middleware.defaults :refer :all]
     [clojure.string :as str]
-    [clojure.data.json :as json])
+    [clojure.data.json :as json]
+    [snow-hall.games.rest :as games])
   (:gen-class))
-
-(println (System/getProperty "java.version"))
 
 (defn ping-request [req]
   {:status  200
@@ -17,14 +16,17 @@
 
 (def test-routes
   [
-    (GET "/ping" [] ping-request)])
+    (GET "/ping" [] ping-request)
+    (GET "/wtf" [] ping-request)])
 
 (def app-routes
-  (apply routes test-routes))
+  (apply routes (concat
+                  test-routes
+                  games/api-routes)))
 
 (defn -main
   "Starts the Game Server"
   [& args]
   (let [port (Integer/getInteger "PORT" 3000)]
     (server/run-server (wrap-defaults #'app-routes site-defaults) {:port port})
-    (println (str "Running webserver at http:/127.0.0.1:" port "/"))))
+    (println (str "Running server at http:/127.0.0.1:" port "/"))))
