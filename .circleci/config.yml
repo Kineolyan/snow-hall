@@ -34,8 +34,8 @@ jobs:
 workflows:
   version: 2
   prs:
-    triggers:
-      branches:
-        ignore: master
     jobs:
-      -test
+      -test:
+        filters:
+          branches:
+            ignore: master
