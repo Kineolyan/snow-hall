@@ -1,0 +1,24 @@
+name: Clojure CI
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+ 
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v1
+    - name: Install dependencies
+      uses: docker://clojure:openjdk-11-lein-2.9.1
+      with:
+        entrypoint: /usr/local/bin/lein
+        args: deps
+    - name: Run tests
+      uses: docker://clojure:openjdk-11-lein-2.9.1
+      with:
+        entrypoint: /usr/local/bin/lein
+        args: test
