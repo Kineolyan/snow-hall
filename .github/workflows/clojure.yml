@@ -13,8 +13,13 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Install dependencies
-      run: lein deps
-      uses: docker://circleci/clojure:openjdk-11-lein-2.9.1
+      uses: docker://clojure:openjdk-11-lein-2.9.1
+      with:
+        entrypoint: /usr/local/bin/lein
+        args: deps
     - name: Run tests
       run: lein test
-      uses: docker://circleci/clojure:openjdk-11-lein-2.9.1
+      uses: docker://clojure:openjdk-11-lein-2.9.1
+      with:
+        entrypoint: /usr/local/bin/lein
+        args: test
