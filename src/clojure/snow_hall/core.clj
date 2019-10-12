@@ -24,7 +24,11 @@
   []
   (let [registry (game-mgr/create-store)]
     (do
-      (game-mgr/add-game registry {:name "Code4Life"})
+      (game-mgr/add-game 
+        registry 
+        {
+          :name "Code4Life"
+          :java "code4life.Referee"})  
       registry)))
 
 (defn create-app-routes
