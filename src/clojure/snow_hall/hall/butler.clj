@@ -2,21 +2,26 @@
   (:require
     [:medley.core :refer random-uuid]))
 
-(defn generate-game-id [tab]
+(defn generate-id [tab]
   (let [ids (vals tab)]
-    (if (empty? ids) 
+    (if (empty? ids)
       1
       (inc (apply max ids)))))
 
-(defn generate-token
-  [tab]
-  (random-uuid))  
+(defn create-tab
+  "Creates the initial tab"
+  []
+  (ref {}))
 
-(defn create-tab [] (ref {}))
-
-(defn create-game 
-  [tab user game-name]
-  (let [game-id (generate-game-id tab)
+(defn create-gathering
+  "Creates a new game for a user"
+  [tab user game]
+  (let [game-id (generate-id tab)
+        players (reduce
+                  (fn [acc _] (conj acc {:token (random-uuid)}))
+                  [(:id user)]
+                  (range (dec (:player-count game))))
         new-game {:id game-id
+                  :game (:name game)
                   :players [(:id user)]}]
     (assoc tab game-id new-game)))
