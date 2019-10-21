@@ -1,9 +1,10 @@
 (ns snow-hall.hall.butler
   (:require
-    [:medley.core :refer random-uuid]))
+    [medley.core :refer [random-uuid]]))
 
-(defn generate-id [tab]
-  (let [ids (vals tab)]
+(defn generate-id 
+  [tab]
+  (let [ids (keys tab)]
     (if (empty? ids)
       1
       (inc (apply max ids)))))
