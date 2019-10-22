@@ -10,8 +10,9 @@
 (deftest create-new-user
   (testing "creates user with all info"
     (let [user (m/create-new-user)]
-      ; We have a UUID but not a name yet
+      ; We have a UUID and a token but not a name yet
       (is ((comp not nil? :uuid) user))
+      (is ((comp not nil? :token) user))
       (is ((comp nil? :name) user))))
 
   (testing "creates many different users"

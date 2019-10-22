@@ -5,11 +5,15 @@
 (defn create-registry [] {})
 
 (defn create-new-user
-  "Creates a new user, with only a UUID"
+  "Creates a new user, with only a UUID and its secret token"
   []
-  {:uuid (str (random-uuid))})
+  {
+    :uuid (str (random-uuid))
+    :token (str (random-uuid))})
 
 (defn set-nickname
+  "Sets the nickname of the given user.
+  If a nickname was already defined, the current value is erased."
   [registry uuid nickname]
   (if-let [user (get registry uuid)]
     (assoc
