@@ -5,11 +5,11 @@
 
 (deftest create-tab
   (testing "creates an empty tab"
-    (= (m/create-tab) (ref {}))))
+    (is (= (m/create-tab) {}))))
 
 (deftest generate-id
   (testing "can generate ids without collision"
-    (let [tab (reduce 
+    (let [tab (reduce
                 (fn [acc i] (assoc acc (m/generate-id acc) i))
                 {}
                 (range 100))]

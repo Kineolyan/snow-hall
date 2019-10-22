@@ -2,7 +2,7 @@
   (:require
     [medley.core :refer [random-uuid]]))
 
-(defn generate-id 
+(defn generate-id
   [tab]
   (let [ids (keys tab)]
     (if (empty? ids)
@@ -12,7 +12,7 @@
 (defn create-tab
   "Creates the initial tab"
   []
-  (ref {}))
+  {})
 
 (defn create-gathering
   "Creates a new game for a user"
