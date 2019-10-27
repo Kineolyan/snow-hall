@@ -63,7 +63,7 @@
                          :user {:id 2}
                          :gathering-id (:id gathering)
                          :token (:token (nth (:players gathering) 1))})]
-    (println updated-tab)
+
     (testing "adds the visitor to the gathering"
       (let [updated-gathering (get updated-tab (:id gathering))]
         (is (some #{2} (:players updated-gathering)))))
@@ -77,7 +77,13 @@
             tokens (->> (:players updated-gathering)
                         (map :token)
                         (filter (complement nil?)))]
-        (is (= (count tokens) 1))))))
+        (is (= (count tokens) 1))))
 
-
-
+    (testing "can consume any item"
+      (let [other-tab (m/join-gathering
+                        {:tab initial-tab
+                         :user {:id 3}
+                         :gathering-id (:id gathering)
+                         :token ((comp :token last :players) gathering)})
+            updated-gathering (get other-tab (:id gathering))]
+        (is (some #{3} (:players updated-gathering)))))))
