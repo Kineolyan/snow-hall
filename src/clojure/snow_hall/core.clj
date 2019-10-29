@@ -7,7 +7,10 @@
     [clojure.string :as str]
     [clojure.data.json :as json]
     [snow-hall.games.manager :as game-mgr]
-    [snow-hall.games.rest :as games])
+    [snow-hall.games.rest]
+    [snow-hall.hall.butler]
+    [snow-hall.hall.visitor]
+    [snow-hall.hall.rest])
   (:gen-class))
 
 (defn ping-request [req]
@@ -24,16 +27,31 @@
   []
   (let [registry (game-mgr/create-store)]
     (do
-      (game-mgr/add-game registry {:name "Code4Life"})
+      (game-mgr/add-game
+        registry
+        {
+          :name "Code4Life"
+          :java "code4life.Referee"
+          :player-count 2})
       registry)))
+
+(defn create-visitor-registry
+  []
+  (ref (snow-hall.hall.visitor/create-registry)))
+
+(defn create-hall-tab
+  []
+  (ref (snow-hall.hall.butler/create-tab)))
 
 (defn create-app-routes
   []
   (let [game-store (create-game-store)
-        game-routes (games/create-routes game-store)]
+        visitor-registry (create-visitor-registry)
+        hall-tab (create-hall-tab)]
     (apply routes (concat
                     test-routes
-                    game-routes))))
+                    (snow-hall.games.rest/create-routes game-store)
+                    (snow-hall.hall.rest/create-routes visitor-registry hall-tab)))))
 
 (defn -main
   "Starts the Game Server"

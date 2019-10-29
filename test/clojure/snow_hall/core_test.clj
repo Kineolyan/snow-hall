@@ -1,6 +1,7 @@
 (ns snow-hall.core-test
-  (:require [clojure.test :refer :all]
-            [snow-hall.core :refer :all]))
+  (:require
+    [clojure.test :refer :all]
+    [snow-hall.core :refer :all]))
 
 ; (deftest a-test
 ;   (testing "FIXME, I fail."

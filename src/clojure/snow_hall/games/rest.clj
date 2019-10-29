@@ -7,7 +7,7 @@
   (let [games (mgr/list-games game-registry)
         body (json/write-str games)]
     {:status  200
-      :headers {"Content-Type" "text/plain"}
+      :headers {"Content-Type" "application/json"}
       :body body}))
 
 (defn create-routes
