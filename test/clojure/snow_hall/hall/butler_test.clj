@@ -87,3 +87,35 @@
                          :token ((comp :token last :players) gathering)})
             updated-gathering (get other-tab (:id gathering))]
         (is (some #{3} (:players updated-gathering)))))))
+
+(deftest get-invit-tokens
+  (let [initial-tab (m/create-gathering
+                      {:tab {}
+                       :user {:id 1}
+                       :game {:name "g" :player-count 3}})
+        id (first (keys initial-tab))
+        gathering (get initial-tab id)
+        updated-tab (m/join-gathering
+                        {:tab initial-tab
+                         :user {:id 2}
+                         :gathering-id id
+                         :token (:token (nth (:players gathering) 2))})
+        full-tab (m/join-gathering
+                    {:tab updated-tab
+                     :user {:id 3}
+                     :gathering-id id
+                     :token (:token (nth (:players gathering) 1))})]
+
+    (testing "returns all free tokens at start"
+      (is (= (m/get-invit-tokens {:tab initial-tab 
+                                  :gathering-id id})
+             (map :token (rest (:players gathering))))))
+
+    (testing "gets all free tokens discarding used"
+      (is (= (m/get-invit-tokens {:tab updated-tab
+                                  :gathering-id id})
+             [(:token (nth (:players gathering) 1))])))
+
+    (testing "returns an empty list when the game is complete"
+      (is (empty? (m/get-invit-tokens {:tab full-tab
+                                       :gathering-id id}))))))

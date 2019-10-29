@@ -31,6 +31,19 @@
                   :players players}]
     (assoc tab game-id new-game)))
 
+(defn get-invit-tokens
+  "Retrieves the free invits for a given gathering"
+  [{:keys [tab gathering-id]}]
+  (let [gathering (get tab gathering-id)]
+    (->> (:players gathering)
+         (map :token)
+         (filter (complement nil?)))))
+
+(defn has-more-invits?
+  "Tests if a given gathering has more free invits"
+  [args]
+  ((comp not empty? get-invit-tokens) args))
+
 (defn get-token-idx
   [players token]
   (->> (map :token players)
