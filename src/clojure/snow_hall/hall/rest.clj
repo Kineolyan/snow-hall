@@ -1,20 +1,18 @@
 (ns snow-hall.hall.rest
   (:require [snow-hall.hall.butler :as butler]
             [snow-hall.hall.visitor :as visitor]
-            [compojure.core :as http]
-            [clojure.data.json :as json]))
+            [compojure.core :as http]))
 
 (defn list-users-request
-  [registry req]
+  [registry _req]
   (let [visitors (vals @registry)
-        cleansed-visitors (map #(dissoc :token visitors))]
-    {
-      :status  200
-      :headers {"Content-Type" "application/json"}
-      :body (json/write-str visitors)}))
+        cleansed-visitors (map (partial dissoc :token) visitors)]
+    {:status  200
+     :headers {"Content-Type" "application/json"}
+     :body cleansed-visitors}))
 
 (defn register-visitor-request
-  [registry req]
+  [registry _req]
   (let [visitor (visitor/create-new-user)]
         ; at this point, we could also read the request to get user info
         ; nickname, ...
@@ -23,18 +21,20 @@
     {
       :status 200
       :headers {"Content-Type" "application/json"}
-      :body (json/write-str visitor)}))
+      :body visitor}))
 
 (defn update-nickname-request
-  [registry req]
-  {
-    :status 500
-    :headers {"Content-Type" "application/json"}
-    :body (json/write-str "Not implemented")})
+  [registry uuid req]
+  (let [new-nickname (:body req)]
+    (dosync
+     (alter registry visitor/set-nickname uuid new-nickname))
+    {:status 500
+     :headers {"Content-Type" "application/json"}
+     :body "Not implemented"}))
 
 (defn create-routes
-  [visitors tab]
+  [visitors _tab]
   [
     (http/GET "/visitors" [] (partial list-users-request visitors))
     (http/POST "/visitors" [] (partial register-visitor-request visitors))
-    (http/PUT "/visitors/uuid/nickname" [] (partial update-nickname-request visitors))])
+    (http/PUT "/visitors/:uuid/nickname" [uuid] (partial update-nickname-request visitors uuid))])
