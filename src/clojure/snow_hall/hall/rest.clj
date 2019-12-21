@@ -1,5 +1,5 @@
 (ns snow-hall.hall.rest
-  (:require [snow-hall.hall.butler :as butler]
+  (:require ;[snow-hall.hall.butler :as butler]
             [snow-hall.hall.visitor :as visitor]
             [compojure.core :as http]))
 
@@ -11,9 +11,14 @@
      :headers {"Content-Type" "application/json"}
      :body cleansed-visitors}))
 
+(defn create-visitor
+  [{:keys [nickname]}]
+  (-> (visitor/create)
+      (#(if nickname (visitor/set-nickname %1 nickname) %1))))
+
 (defn register-visitor-request
-  [registry _req]
-  (let [visitor (visitor/create)]
+  [registry req]
+  (let [visitor (create-visitor (:body req))]
         ; at this point, we could also read the request to get user info
         ; nickname, ...
     (dosync
@@ -33,10 +38,10 @@
                r 
                uuid 
                token 
-               #(assoc % :nickname nickname)))))
-    {:status 500
+               #(visitor/set-nickname % nickname)))))
+    {:status 200
      :headers {"Content-Type" "application/json"}
-     :body "Not implemented"}))
+     :body {:uuid uuid :nickname nickname}}))
 
 (defn create-routes
   [visitors _tab]

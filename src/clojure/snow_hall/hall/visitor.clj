@@ -30,17 +30,11 @@
        (assoc registry uuid (partial action registry))
        (throw (IllegalArgumentException. (str "Invalid token for " uuid)))))))
 
-(defn set-nickname
-  "Sets the nickname of the given user.
-  If a nickname was already defined, the current value is erased."
-  [registry uuid nickname]
-  (if-let [user (get registry uuid)]
-    (assoc registry
-           uuid
-           (assoc user :nickname nickname))
-    (throw (IllegalArgumentException. (str uuid)))))
-
 (defn register
   "Register a new user into the registry"
   [registry user]
   (assoc registry (:uuid user) user))
+
+(defn set-nickname
+  [user nickname]
+  (assoc user :nickname nickname))
