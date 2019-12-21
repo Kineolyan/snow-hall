@@ -40,35 +40,30 @@
 (deftest edit-visitor
   (let [users (repeatedly 10 m/create)
         registry (reduce m/register (m/create-registry) users)
-        user-5 (nth users 5)]
+        user-5 (nth users 5)
+        add-mark-action #(assoc % :marked true)]
     (testing "gives access to the wanted user"
-      (m/on
-       registry
-       (:uuid user-5)
-       #(do
-          (is (= %2 user-5))
-          (is (= %1 registry)))))
+      (let [updated-registry (m/edit
+                              registry
+                              (:uuid user-5)
+                              (:token user-5)
+                              add-mark-action)]
+        (is (= (get-in updated-registry [(:uuid user-5) :marked])) true)))
 
     (testing "throws for non-existing user"
       (is (thrown?
            IllegalArgumentException
-           (m/on registry "something-wrong" nil))))))
-
-(deftest set-nickname
-  (testing "sets once the nickname of the user"
-    (let [id "user-id"
-          registry {id {:uuid id}}
-          updated (m/set-nickname registry id "oli")
-          complete-user (updated id)]
-      (is (= (:nickname complete-user) "oli"))))
-
-  (testing "can change the nickname of the user"
-    (let [id "user-id"
-          registry {id {:uuid id :nickname "oli"}}
-          updated (m/set-nickname registry id "ilo")
-          updated-user (updated id)]
-      (is (= (:nickname updated-user) "ilo"))))
-
-  (testing "throws if the user does not exist"
-    (is (thrown? IllegalArgumentException (m/set-nickname {} "id" "me")))))
-
+           (m/edit 
+            registry 
+            "something-wrong" 
+            (:token user-5) 
+            add-mark-action))))
+    
+    (testing "throws for an invalid token"
+      (is (thrown?
+           IllegalArgumentException
+           (m/edit
+            registry
+            (:uuid user-5)
+            "not-a-token"
+            add-mark-action))))))
