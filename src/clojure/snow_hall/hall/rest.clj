@@ -13,11 +13,11 @@
 
 (defn register-visitor-request
   [registry _req]
-  (let [visitor (visitor/create-new-user)]
+  (let [visitor (visitor/create)]
         ; at this point, we could also read the request to get user info
         ; nickname, ...
     (dosync
-      (alter registry visitor/register-user visitor))
+      (alter registry visitor/register visitor))
     {
       :status 200
       :headers {"Content-Type" "application/json"}
@@ -25,9 +25,15 @@
 
 (defn update-nickname-request
   [registry uuid req]
-  (let [new-nickname (:body req)]
+  (let [{:keys [token nickname]} (:body req)]
     (dosync
-     (alter registry visitor/set-nickname uuid new-nickname))
+     (alter 
+      registry 
+      (fn [r] (visitor/edit
+               r 
+               uuid 
+               token 
+               #(assoc % :nickname nickname)))))
     {:status 500
      :headers {"Content-Type" "application/json"}
      :body "Not implemented"}))
