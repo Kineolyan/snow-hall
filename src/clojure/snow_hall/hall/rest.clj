@@ -6,13 +6,13 @@
 (defn list-users-request
   [registry _req]
   (let [visitors (vals @registry)
-        cleansed-visitors (map (partial dissoc :token) visitors)]
+        cleansed-visitors (map #(dissoc % :token) visitors)]
     {:status  200
      :headers {"Content-Type" "application/json"}
      :body cleansed-visitors}))
 
 (defn create-visitor
-  [{:keys [nickname]}]
+  [{:strs [nickname]}]
   (-> (visitor/create)
       (#(if nickname (visitor/set-nickname %1 nickname) %1))))
 
@@ -30,15 +30,14 @@
 
 (defn update-nickname-request
   [registry uuid req]
-  (let [{:keys [token nickname]} (:body req)]
+  (let [{:strs [token nickname]} (:body req)]
     (dosync
-     (alter 
-      registry 
-      (fn [r] (visitor/edit
-               r 
-               uuid 
-               token 
-               #(visitor/set-nickname % nickname)))))
+     (alter
+      registry
+      visitor/edit
+      uuid
+      token
+      #(visitor/set-nickname % nickname)))
     {:status 200
      :headers {"Content-Type" "application/json"}
      :body {:uuid uuid :nickname nickname}}))
