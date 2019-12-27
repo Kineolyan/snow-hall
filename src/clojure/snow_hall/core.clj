@@ -49,7 +49,6 @@
                     basic-routes
                     (snow-hall.games.rest/create-routes game-store)
                     (snow-hall.hall.rest/create-routes visitor-registry hall-tab)))))
-(prn (create-app-routes))
 
 (def app-site-config
   (update-in ring-defaults/site-defaults [:security] dissoc :anti-forgery))

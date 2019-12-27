@@ -14,4 +14,7 @@
   :test-paths ["test/clojure"]
   :java-source-paths ["src/java"]
   :javac-options ["-target" "11" "-source" "11"]
-  :profiles {:uberjar {:aot :all}})
+  :profiles {
+             :uberjar {:aot :all}
+             :test {
+                    :dependencies [[org.clojure/data.json "0.2.7"]]}})
