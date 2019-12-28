@@ -1,16 +1,17 @@
 (ns integration.story
   (:require [org.httpkit.client :as http]
-            [clojure.test :refer [deftest testing]]
+            [clojure.test :refer [deftest]]
             [clojure.data.json :as json]))
 
 (defmacro story
   [name & body]
-  `(deftest ~name ~@body)) 
+  `(deftest ^:integration ~name ~@body)) 
 
-(defn step
-  [title operation]
-  (println (str " > " title))
-  (testing title operation))
+(defmacro step
+  [title & operation]
+  `(do
+     (println (str " > " ~title))
+     ~@operation))
 
 (def port 3000)
 (def base-url (str "http://localhost:" port))

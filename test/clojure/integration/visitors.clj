@@ -3,7 +3,7 @@
             [clojure.test :refer (is)]))
 
 (s/story 
- register-and-update
+ register-and-udpate
  (let [context (atom {})]
    (s/step "register a first user"
            (let [user1 (s/post "/visitors")]
@@ -22,8 +22,6 @@
                (is (some #{(get user "uuid")} uuids)))))
    (s/step "update nickname of first user"
            (let [{:strs [uuid token]} (:user1 @context)]
-             (print @context)
-             (print (str uuid " -> " token))
              (s/put (str "/visitors/" uuid "/nickname")
                     {"token" token
                      "nickname" "georges"}))
