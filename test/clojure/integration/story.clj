@@ -9,7 +9,7 @@
 
 (defn step
   [title operation]
-  (print (str " > " title))
+  (println (str " > " title))
   (testing title operation))
 
 (def port 3000)
@@ -17,7 +17,7 @@
 
 (defn- handle
   [response]
-  (let [{:keys [status headers body error] :as resp} @response]
+  (let [{:keys [status body error]} @response]
     (when error
       (throw (AssertionError. (str "Failed, exception: " error))))
     (when (>= status 400) 
@@ -30,16 +30,20 @@
   [url]
   (handle (http/get (str base-url url))))
 
+(defn- request-with-body
+  [method url content]
+  (let [options {:headers {"Content-Type" "application/json"}
+                 :body (json/write-str content)}]
+    (handle (method (str base-url url) options))))
+
 (defn post
   ([url]
    (handle (http/post (str base-url url))))
   ([url content]
-   (let [body (json/write-str content)]
-     (handle (http/post (str base-url url) {:body body})))))
+   (request-with-body http/post url content)))
 
 (defn put
   ([url]
    (handle (http/put (str base-url url))))
   ([url content]
-   (let [body (json/write-str content)]
-     (handle (http/put (str base-url url) {:body body})))))
+   (request-with-body http/put url content)))
