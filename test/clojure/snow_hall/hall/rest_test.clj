@@ -8,7 +8,7 @@
   [body]
   {:body body})
 
-(deftest register-visitor
+(deftest register-visitor []
   (let [registry (ref (visitor/create-registry))
         answer (m/register-visitor-request
                 registry

@@ -17,4 +17,6 @@
   :profiles {
              :uberjar {:aot :all}
              :test {
-                    :dependencies [[org.clojure/data.json "0.2.7"]]}})
+                    :dependencies [[org.clojure/data.json "0.2.7"]]
+                    :test-selectors {:default (complement :integration)
+                                     :integration :integration}}})

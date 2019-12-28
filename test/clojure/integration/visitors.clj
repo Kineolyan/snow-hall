@@ -1,8 +1,8 @@
 (ns integration.visitors
   (:require [integration.story :as s]
-            [clojure.test :refer (is)]))
+            [clojure.test :refer (deftest is)]))
 
-(s/story 
+(s/story
  register-and-udpate
  (let [context (atom {})]
    (s/step "register a first user"

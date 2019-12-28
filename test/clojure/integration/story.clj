@@ -5,7 +5,7 @@
 
 (defmacro story
   [name & body]
-  `(deftest ^:integration ~name ~@body)) 
+  `(deftest ~(with-meta name {:integration true}) [] ~@body)) 
 
 (defmacro step
   [title & operation]
