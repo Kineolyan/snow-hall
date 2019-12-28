@@ -22,11 +22,11 @@
         ; at this point, we could also read the request to get user info
         ; nickname, ...
     (dosync
-      (alter registry visitor/register visitor))
+     (alter registry visitor/register visitor))
     {
-      :status 200
-      :headers {"Content-Type" "application/json"}
-      :body visitor}))
+     :status 200
+     :headers {"Content-Type" "application/json"}
+     :body visitor}))
 
 (defn update-nickname-request
   [registry uuid req]

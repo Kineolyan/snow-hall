@@ -48,7 +48,7 @@
                               (:uuid user-5)
                               (:token user-5)
                               add-mark-action)]
-        (is (= (get-in updated-registry [(:uuid user-5) :marked])) true)))
+        (is (= (get-in updated-registry [(:uuid user-5) :marked]) true))))
 
     (testing "throws for non-existing user"
       (is (thrown?

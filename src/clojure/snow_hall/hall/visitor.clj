@@ -27,7 +27,7 @@
    uuid
    (fn [registry user]
      (if (validate-token user token)
-       (assoc registry uuid (partial action registry))
+       (assoc registry uuid (action user))
        (throw (IllegalArgumentException. (str "Invalid token for " uuid)))))))
 
 (defn register
