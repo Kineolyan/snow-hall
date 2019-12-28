@@ -3,11 +3,11 @@
     [clojure.test :refer :all]
     [snow-hall.hall.butler :as m]))
 
-(deftest create-tab
+(deftest create-tab []
   (testing "creates an empty tab"
     (is (= (m/create-tab) {}))))
 
-(deftest generate-id
+(deftest generate-id []
   (testing "can generate ids without collision"
     (let [tab (reduce
                 (fn [acc i] (assoc acc (m/generate-id acc) i))
@@ -15,7 +15,7 @@
                 (range 100))]
       (is (= (count tab) 100)))))
 
-(deftest create-gathering
+(deftest create-gathering []
   (let [tab {}
         user {:id 1}
         game {:name "g" :player-count 3}
@@ -43,7 +43,7 @@
         (is (= 2 (count (set tokens))))
         (is (= true (not-any? nil? tokens)))))))
 
-(deftest get-token-idx
+(deftest get-token-idx []
   (let [players [1 {:token "abc"} 2 {:token "def"}]]
     (testing "finds the index of an existing token"
       (is (= 1 (m/get-token-idx players "abc")))
@@ -52,7 +52,7 @@
     (testing "returns falsy for an unknown token"
       (is (not (m/get-token-idx players "ghi"))))))
 
-(deftest join-gathering
+(deftest join-gathering []
   (let [initial-tab (m/create-gathering
                       {:tab {}
                        :user {:id 1}
@@ -88,7 +88,7 @@
             updated-gathering (get other-tab (:id gathering))]
         (is (some #{3} (:players updated-gathering)))))))
 
-(deftest get-invit-tokens
+(deftest get-invit-tokens []
   (let [initial-tab (m/create-gathering
                       {:tab {}
                        :user {:id 1}
