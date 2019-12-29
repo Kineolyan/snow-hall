@@ -85,7 +85,6 @@
                        {:tab @tab
                         :user visitor
                         :game game})]
-    (println "created > " new-gathering)
     (alter tab butler/register-gathering new-gathering)
     {:status 200
      :body new-gathering}))
