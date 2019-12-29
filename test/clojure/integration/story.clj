@@ -1,20 +1,29 @@
 (ns integration.story
   (:require [org.httpkit.client :as http]
             [clojure.test :refer [deftest]]
-            [clojure.data.json :as json]))
+            [clojure.data.json :as json]
+            [snow-hall.core :refer [start-server]]))
+
+(def server (atom nil))
+(def port 4321)
+(def base-url (str "http://localhost:" port))
+
+(defn ensure-server 
+  []
+  (swap! server #(if (nil? %1) (start-server port) %1)))
 
 (defmacro story
   [name & body]
-  `(deftest ~(with-meta name {:integration true}) [] ~@body)) 
+  `(deftest ~(with-meta name {:integration true}) []
+     (require 'integration.story)
+     (integration.story/ensure-server)
+     ~@body)) 
 
 (defmacro step
   [title & operation]
   `(do
      (println (str " > " ~title))
      ~@operation))
-
-(def port 3000)
-(def base-url (str "http://localhost:" port))
 
 (defn- handle
   [response]

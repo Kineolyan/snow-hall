@@ -53,15 +53,22 @@
 (def app-site-config
   (update-in ring-defaults/site-defaults [:security] dissoc :anti-forgery))
 
+(defn create-handler
+  [app-routes]
+  (-> app-routes
+      (json/wrap-json-body)
+      (json/wrap-json-response {:keywords? true :bigdecimals? true})
+      (ring-defaults/wrap-defaults app-site-config)))
+
+(defn start-server 
+  [port]
+  (-> (create-app-routes)
+      (create-handler)
+      (server/run-server {:port port})))
+
 (defn -main
   "Starts the Game Server"
   [& _args]
-  (let [port (Integer/getInteger "PORT" 3000)
-        app-routes (create-app-routes)]
-    (server/run-server
-     (-> app-routes
-         (json/wrap-json-body)
-         (json/wrap-json-response {:keywords? true :bigdecimals? true})
-         (ring-defaults/wrap-defaults app-site-config))
-     {:port port})
+  (let [port (Integer/getInteger "PORT" 3000)]
+    (start-server port)
     (println (str "Running server at http:/127.0.0.1:" port "/"))))
