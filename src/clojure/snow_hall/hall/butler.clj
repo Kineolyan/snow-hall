@@ -1,6 +1,17 @@
 (ns snow-hall.hall.butler
   (:require
-    [medley.core :refer [random-uuid]]))
+  ;  [clojure.spec.alpha :as spec]
+   [medley.core :refer [random-uuid]]))
+
+; (spec/def ::id string?)
+; (spec/def ::token string?)
+; (spec/def ::game-name string?)
+; (spec/def ::player-list 
+;   (spec/coll-of (spec/alt
+;               :player (spec/keys [::id])
+;               :token ::token)))
+; (spec/def ::gathering (spec/keys [::id ::game-name]))
+; (spec/def ::tab (spec/map-of ::id ::gathering))
 
 (defn generate-id
   [tab]
@@ -18,18 +29,22 @@
   [player-count first-player]
   (reduce
     (fn [acc _] (conj acc {:token (random-uuid)}))
-    [(:id first-player)]
+    [(:uuid first-player)]
     (range (dec player-count))))
 
 (defn create-gathering
   "Creates a new game for a user"
   [{:keys [tab user game]}]
   (let [game-id (generate-id tab)
-        players (create-player-list (:player-count game) user)
-        new-game {:id game-id
-                  :game (:name game)
-                  :players players}]
-    (assoc tab game-id new-game)))
+        players (create-player-list (:player-count game) user)]
+    {:id game-id
+     :game (:name game)
+     :players players}))
+
+(defn register-gathering
+  "Registers a new gathering to the tab."
+  [tab gathering]
+  (assoc tab (:id gathering) gathering))
 
 (defn get-invit-tokens
   "Retrieves the free invits for a given gathering"
@@ -57,7 +72,7 @@
     (assoc 
       game
       :players
-      (assoc (:players game) i (:id user)))
+      (assoc (:players game) i (:uuid user)))
     {:error (str "Token not in the gathering list: " token)}))
 
 (defn join-gathering

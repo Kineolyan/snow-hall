@@ -42,13 +42,13 @@
 
 (defn create-app-routes
   []
-  (let [game-store (create-game-store)
-        visitor-registry (create-visitor-registry)
-        hall-tab (create-hall-tab)]
+  (let [context {:games  (create-game-store)
+                 :visitors (create-visitor-registry)
+                 :tab (create-hall-tab)}]
     (apply cmpj/routes (concat
                     basic-routes
-                    (snow-hall.games.rest/create-routes game-store)
-                    (snow-hall.hall.rest/create-routes visitor-registry hall-tab)))))
+                    (snow-hall.games.rest/create-routes context)
+                    (snow-hall.hall.rest/create-routes context)))))
 
 (def app-site-config
   (update-in ring-defaults/site-defaults [:security] dissoc :anti-forgery))

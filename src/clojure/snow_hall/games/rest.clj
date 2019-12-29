@@ -9,6 +9,6 @@
       :body games}))
 
 (defn create-routes
-  [store]
+  [{:keys [games]}]
   [
-    (http/GET "/games" [] (partial list-games-request store))])
+    (http/GET "/games" [] (partial list-games-request games))])

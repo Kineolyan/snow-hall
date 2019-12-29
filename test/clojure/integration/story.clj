@@ -2,7 +2,8 @@
   (:require [org.httpkit.client :as http]
             [clojure.test :refer [deftest]]
             [clojure.data.json :as json]
-            [snow-hall.core :refer [start-server]]))
+            [snow-hall.core :refer [start-server]])
+  (:refer-clojure :exclude [get]))
 
 (def server (atom nil))
 (def port 4321)

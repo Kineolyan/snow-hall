@@ -1,6 +1,6 @@
 (ns snow-hall.hall.butler-test
   (:require
-    [clojure.test :refer :all]
+    [clojure.test :refer [deftest testing is]]
     [snow-hall.hall.butler :as m]))
 
 (deftest create-tab []
@@ -17,15 +17,18 @@
 
 (deftest create-gathering []
   (let [tab {}
-        user {:id 1}
+        user {:uuid 1}
         game {:name "g" :player-count 3}
-        updated (m/create-gathering {:tab tab
-                                     :user user
-                                     :game game})]
+        new-gathering (m/create-gathering 
+                  {:tab tab
+                   :user user
+                   :game game})
+        updated (m/register-gathering tab new-gathering)]
     (testing "registers a new gathering into the tab"
       (is (= (count updated) 1))
       (is (= (keys updated)
-             (map :id (vals updated)))))
+             (map :id (vals updated))))
+      (is (contains? updated (:id new-gathering))))
 
     (testing "records the game to play"
       (let [g (first (vals updated))]
@@ -53,19 +56,20 @@
       (is (not (m/get-token-idx players "ghi"))))))
 
 (deftest join-gathering []
-  (let [initial-tab (m/create-gathering
-                      {:tab {}
-                       :user {:id 1}
-                       :game {:name "g" :player-count 3}})
-          gathering (first (vals initial-tab))
-          updated-tab (m/join-gathering
-                        {:tab initial-tab
-                         :user {:id 2}
-                         :gathering-id (:id gathering)
-                         :token (:token (nth (:players gathering) 1))})]
+  (let [gathering (m/create-gathering
+                   {:tab {}
+                    :user {:uuid 1}
+                    :game {:name "g" :player-count 3}})
+        initial-tab (m/register-gathering {} gathering)
+        gathering (first (vals initial-tab))
+        updated-tab (m/join-gathering
+                     {:tab initial-tab
+                      :user {:uuid 2}
+                      :gathering-id (:id gathering)
+                      :token (:token (nth (:players gathering) 1))})]
 
     (testing "adds the visitor to the gathering"
-      (let [updated-gathering (get updated-tab (:id gathering))]
+      (let [updated-gathering (get updated-tab (:uuid gathering))]
         (is (some #{2} (:players updated-gathering)))))
 
     (testing "still contains the initial visitor"
@@ -82,29 +86,29 @@
     (testing "can consume any item"
       (let [other-tab (m/join-gathering
                         {:tab initial-tab
-                         :user {:id 3}
+                         :user {:uuid 3}
                          :gathering-id (:id gathering)
                          :token ((comp :token last :players) gathering)})
             updated-gathering (get other-tab (:id gathering))]
         (is (some #{3} (:players updated-gathering)))))))
 
 (deftest get-invit-tokens []
-  (let [initial-tab (m/create-gathering
-                      {:tab {}
-                       :user {:id 1}
-                       :game {:name "g" :player-count 3}})
-        id (first (keys initial-tab))
-        gathering (get initial-tab id)
+  (let [gathering (m/create-gathering
+                   {:tab {}
+                    :user {:uuid 1}
+                    :game {:name "g" :player-count 3}})
+        initial-tab (m/register-gathering {} gathering)
+        id (:id gathering)
         updated-tab (m/join-gathering
-                        {:tab initial-tab
-                         :user {:id 2}
-                         :gathering-id id
-                         :token (:token (nth (:players gathering) 2))})
+                     {:tab initial-tab
+                      :user {:uuid 2}
+                      :gathering-id id
+                      :token (:token (nth (:players gathering) 2))})
         full-tab (m/join-gathering
-                    {:tab updated-tab
-                     :user {:id 3}
-                     :gathering-id id
-                     :token (:token (nth (:players gathering) 1))})]
+                  {:tab updated-tab
+                   :user {:uuid 3}
+                   :gathering-id id
+                   :token (:token (nth (:players gathering) 1))})]
 
     (testing "returns all free tokens at start"
       (is (= (m/get-invit-tokens {:tab initial-tab 
