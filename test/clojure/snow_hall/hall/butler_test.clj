@@ -69,7 +69,7 @@
                       :token (:token (nth (:players gathering) 1))})]
 
     (testing "adds the visitor to the gathering"
-      (let [updated-gathering (get updated-tab (:uuid gathering))]
+      (let [updated-gathering (get updated-tab (:id gathering))]
         (is (some #{2} (:players updated-gathering)))))
 
     (testing "still contains the initial visitor"
