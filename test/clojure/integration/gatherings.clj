@@ -26,8 +26,11 @@
            (is gathering)
            (swap! context assoc :gathering gathering)))
    (step "finds invits"
-         (let [{:keys [gathering]} @context
-               invits (s/get (str "/gatherings/" (gathering "id") "/invits"))]
+         (let [{:keys [gathering creator]} @context
+               invits (s/get (str "/gatherings/" (gathering "id") "/invits")
+                             {"Authorization" (str (creator "uuid") 
+                                                   ":" 
+                                                   (creator "token"))})]
            (is (= (gathering "players") invits))))
    (step "register another user"
          (let [{:keys [gathering guest]} @context]
@@ -41,6 +44,9 @@
                          (get "token"))})
            ))
    (step "checks for full game"
-         (let [{:keys [gathering]} @context
-               invits (s/get (str "/gatherings/" (gathering "id") "/invits"))]
+         (let [{:keys [gathering creator]} @context
+               invits (s/get (str "/gatherings/" (gathering "id") "/invits")
+                             {"Authorization" (str (creator "uuid") 
+                                                   ":" 
+                                                   (creator "token"))})]
            (is (every? string? invits))))))
