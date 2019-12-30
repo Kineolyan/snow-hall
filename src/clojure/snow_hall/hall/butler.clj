@@ -1,7 +1,7 @@
 (ns snow-hall.hall.butler
   (:require
   ;  [clojure.spec.alpha :as spec]
-   [medley.core :refer [random-uuid]]))
+   [snow-hall.uuid :refer [random-uuid ->uuid]]))
 
 ; (spec/def ::id string?)
 ; (spec/def ::token string?)
@@ -17,8 +17,8 @@
   [tab]
   (let [ids (keys tab)]
     (if (empty? ids)
-      1
-      (inc (apply max ids)))))
+      "1"
+      (->> ids (map #(Integer/parseInt %)) (apply max) (inc) (str)))))
 
 (defn create-tab
   "Creates the initial tab"
@@ -61,27 +61,28 @@
 
 (defn get-token-idx
   [players token]
-  (->> (map :token players)
-       (map vector (range))
-       (filter #(= token (second %)))
-       (ffirst)))
+  (let [token (->uuid token)]
+    (->> (map :token players)
+         (map vector (range))
+         (filter #(= token (second %)))
+         (ffirst))))
 
 (defn integrate-visitor
   [game user token]
   (if-let [i (get-token-idx (:players game) token)]
     (assoc 
-      game
-      :players
-      (assoc (:players game) i (:uuid user)))
-    {:error (str "Token not in the gathering list: " token)}))
+     game
+     :players
+     (assoc (:players game) i (:uuid user)))
+    (throw (IllegalArgumentException. (str "Token not in the gathering list: " token)))))
 
 (defn join-gathering
   "Joins an existing gathering"
   [{:keys [tab user gathering-id token]}]
   (if-let [game (get tab gathering-id)]
     (assoc 
-      tab 
-      gathering-id
-      (integrate-visitor game user token))
-    {:error (str "Not a gathering id " gathering-id)}))
+     tab 
+     gathering-id
+     (integrate-visitor game user token))
+    (throw (IllegalArgumentException. (str "Not a gathering id " gathering-id)))))
 

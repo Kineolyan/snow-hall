@@ -13,15 +13,15 @@
   "Extracts the user info from headers or the payload."
   [req]
   (let [{:strs [uuid token]} (get-in req [:body "user"])
-        header (get-in req [:headers "Authorization"])]
-    (cond
+        header (get-in req [:headers "authorization"])]
+    (cond 
       (and uuid token) {:uuid uuid :token token}
       header (let [[uuid token] (str/split header #":")]
                {:uuid uuid :token token})
       :else nil)))
 
-(defn with-user
-  [req visitors action]
+(defn with-visitor
+  [visitors req action]
   (let [{:keys [uuid token]} (extract-user-info req)
         v (visitors uuid)]
     (cond
@@ -29,10 +29,17 @@
       (visitor/validate-token v token) (action v)
       :else {:status 403})))
 
+; TODO edit to have a getter instead of always reading it from the req
 (defn with-game
   [req games action]
   (if-let [game (get games (get-in req [:body "game-id"]))]
     (action game)
+    {:status 404}))
+
+(defn with-gathering
+  [tab guid-getter action]
+  (if-let [gathering (get tab (guid-getter))]
+    (action gathering)
     {:status 404}))
 
 (defn list-users-request
@@ -51,8 +58,6 @@
 (defn register-visitor-request
   [registry req]
   (let [visitor (create-visitor (:body req))]
-        ; at this point, we could also read the request to get user info
-        ; nickname, ...
     (dosync
      (alter registry visitor/register visitor))
     {:status 200
@@ -92,26 +97,58 @@
 (defn create-gathering-request
   [visitors tab games req]
   (dosync
-    (with-user
-      req
+    (with-visitor
       @visitors
+      req
       (fn [visitor]
         (with-game 
           req
           @games
           (fn [game] (do-create-gathering tab visitor game)))))))
 
+(defn get-invit-list
+  [gathering visitor]
+  (let [players (:players gathering)
+        owner-id (first players)
+        visitor-id (:uuid visitor)]
+    (if (= owner-id visitor-id)
+      {:status 200
+       :body players}
+      {:status 403})))
+
 (defn list-invit-request
-  [_visitors _tab _req]
-  {:status 500
-   :headers {"Content-Type" "text/plain"}
-   :body "Not implemented yet"})
+  [visitors tab guid req]
+  (with-visitor
+    @visitors
+    req
+    (fn [visitor]
+      (with-gathering 
+        @tab 
+        (constantly guid)
+        (fn [gathering] (get-invit-list gathering visitor))))))
+
+(defn do-join-gathering
+  [tab gathering visitor token]
+  (alter tab #(butler/join-gathering {:tab %
+                                      :user visitor
+                                      :gathering-id (:id gathering)
+                                      :token token}))
+  {:status 200})
 
 (defn join-gathering-request
-  [_visitors _tab _req]
-  {:status 500
-   :headers {"Content-Type" "text/plain"}
-   :body "Not implemented yet"})
+  [visitors tab guid req]
+  (dosync
+   (with-visitor
+     @visitors
+     req
+     (fn [visitor]
+       (with-gathering
+         @tab
+         (constantly guid)
+         (fn [gathering] (do-join-gathering tab 
+                                            gathering
+                                            visitor
+                                            (get-in req [:body "token"]))))))))
 
 (defn create-routes
   [{:keys [visitors tab games]}]
@@ -123,5 +160,5 @@
      (http/GET "/" [] (partial list-gathering-request tab))
      (http/POST "/" [] (partial create-gathering-request visitors tab games))
      (http/context "/:guid" [guid]
-       (http/GET "/invits" [] (partial list-invit-request visitors tab))
-       (http/POST "/" [] (partial join-gathering-request visitors tab))))])
+       (http/GET "/invits" [] (partial list-invit-request visitors tab guid))
+       (http/POST "/" [] (partial join-gathering-request visitors tab guid))))])
