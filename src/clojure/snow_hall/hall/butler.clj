@@ -1,7 +1,7 @@
 (ns snow-hall.hall.butler
   (:require
   ;  [clojure.spec.alpha :as spec]
-   [snow-hall.uuid :refer [random-uuid ->uuid]]))
+   [snow-hall.uuid :refer [random-uuid]]))
 
 ; (spec/def ::id string?)
 ; (spec/def ::token string?)
@@ -61,11 +61,10 @@
 
 (defn get-token-idx
   [players token]
-  (let [token (->uuid token)]
-    (->> (map :token players)
-         (map vector (range))
-         (filter #(= token (second %)))
-         (ffirst))))
+  (->> (map :token players)
+       (map vector (range))
+       (filter #(= token (second %)))
+       (ffirst)))
 
 (defn integrate-visitor
   [game user token]
