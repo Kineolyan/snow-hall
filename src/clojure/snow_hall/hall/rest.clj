@@ -2,7 +2,8 @@
   (:require [snow-hall.hall.butler :as butler]
             [snow-hall.hall.visitor :as visitor]
             [compojure.core :as http]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [snow-hall.uuid :refer [->uuid]]))
 
 (defn format-gathering
   [gathering]
@@ -137,18 +138,17 @@
 
 (defn join-gathering-request
   [visitors tab guid req]
-  (dosync
-   (with-visitor
-     @visitors
-     req
-     (fn [visitor]
-       (with-gathering
-         @tab
-         (constantly guid)
-         (fn [gathering] (do-join-gathering tab 
-                                            gathering
-                                            visitor
-                                            (get-in req [:body "token"]))))))))
+  (let [token (->uuid (get-in req [:body "token"]))]
+    (dosync
+     (with-visitor
+       @visitors
+       req
+       (fn [visitor]
+         (with-gathering
+           @tab
+           (constantly guid)
+           (fn [gathering] 
+             (do-join-gathering tab gathering visitor token))))))))
 
 (defn create-routes
   [{:keys [visitors tab games]}]
