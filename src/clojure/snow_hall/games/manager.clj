@@ -6,8 +6,8 @@
 (s/def ::name string?)
 (s/def ::player-count int?)
 (s/def ::java string?)
-(s/def ::game (s/keys :req [::name ::player-count]
-                      :opt [::java]))
+(s/def ::game (s/keys :req-un [::name ::player-count]
+                      :opt-un [::java]))
 (s/def ::games (s/map-of ::name ::game))
 
 ; methods
@@ -21,7 +21,7 @@
   "Adds a new game to the server"
   [store game]
   (dosync
-    (alter store assoc (game :name) game)))
+    (alter store assoc (:name game) game)))
 
 (defn list-games
   "Lists all games available in this server"
