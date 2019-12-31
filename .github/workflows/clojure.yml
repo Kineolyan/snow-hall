@@ -30,4 +30,4 @@ jobs:
       uses: docker://clojure:openjdk-11-lein-2.9.1
       with:
         entrypoint: /usr/local/bin/lein
-        args: ["test", ":all"]
+        args: test :all
