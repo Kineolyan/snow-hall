@@ -1,4 +1,4 @@
-name: Clojure CI
+name: Pull Request CI
 
 on:
   pull_request:
@@ -12,13 +12,22 @@ jobs:
     
     steps:
     - uses: actions/checkout@v1
+
+    - name: Cache dependencies
+      uses: actions/cache@v1
+      id: cache
+      with:
+        path: ~/.m2
+        key: ${{ hashFiles('project.clj') }}
+
     - name: Install dependencies
       uses: docker://clojure:openjdk-11-lein-2.9.1
       with:
         entrypoint: /usr/local/bin/lein
         args: deps
+
     - name: Run tests
       uses: docker://clojure:openjdk-11-lein-2.9.1
       with:
         entrypoint: /usr/local/bin/lein
-        args: test
+        args: test :all
