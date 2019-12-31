@@ -23,14 +23,13 @@
 (defn create-game-store
   []
   (let [registry (game-mgr/create-store)]
-    (do
-      (game-mgr/add-game
-        registry
-        {
-          :name "Code4Life"
-          :java "code4life.Referee"
-          :player-count 2})
-      registry)))
+    (game-mgr/add-game
+     registry
+     {
+      :name "Code4Life"
+      :java "code4life.Referee"
+      :player-count 2})
+    registry))
 
 (defn create-visitor-registry
   []
