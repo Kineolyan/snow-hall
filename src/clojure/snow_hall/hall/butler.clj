@@ -1,17 +1,18 @@
 (ns snow-hall.hall.butler
   (:require
-  ;  [clojure.spec.alpha :as spec]
-   [snow-hall.uuid :refer [random-uuid]]))
+   [clojure.spec.alpha :as s]
+   [snow-hall.uuid :as uuids]
+   [snow-hall.validate :refer [create-validation]]))
 
-; (spec/def ::id string?)
-; (spec/def ::token string?)
-; (spec/def ::game-name string?)
-; (spec/def ::player-list 
-;   (spec/coll-of (spec/alt
-;               :player (spec/keys [::id])
-;               :token ::token)))
-; (spec/def ::gathering (spec/keys [::id ::game-name]))
-; (spec/def ::tab (spec/map-of ::id ::gathering))
+(s/def ::id string?)
+(s/def ::token uuids/uuid?)
+(s/def ::game string?)
+(s/def ::player-list
+  (s/coll-of (s/alt
+              :player :snow-hall.hall.visitors/uuid
+              :token (s/keys :req-un [::token]))))
+(s/def ::gathering (s/keys :req-un [::id ::game]))
+(s/def ::tab (s/map-of ::id ::gathering))
 
 (defn generate-id
   [tab]
@@ -24,11 +25,12 @@
   "Creates the initial tab"
   []
   {})
+(def validate-fn (create-validation ::tab))
 
 (defn create-player-list
   [player-count first-player]
   (reduce
-    (fn [acc _] (conj acc {:token (random-uuid)}))
+    (fn [acc _] (conj acc {:token (uuids/random-uuid)}))
     [(:uuid first-player)]
     (range (dec player-count))))
 
@@ -69,7 +71,7 @@
 (defn integrate-visitor
   [game user token]
   (if-let [i (get-token-idx (:players game) token)]
-    (assoc 
+    (assoc
      game
      :players
      (assoc (:players game) i (:uuid user)))
@@ -79,8 +81,8 @@
   "Joins an existing gathering"
   [{:keys [tab user gathering-id token]}]
   (if-let [game (get tab gathering-id)]
-    (assoc 
-     tab 
+    (assoc
+     tab
      gathering-id
      (integrate-visitor game user token))
     (throw (IllegalArgumentException. (str "Not a gathering id " gathering-id)))))

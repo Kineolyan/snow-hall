@@ -1,6 +1,6 @@
 (ns integration.visitors
   (:require [integration.story :as s :refer [story step]]
-            [clojure.test :refer (deftest is)]))
+            [clojure.test :refer (is)]))
 
 (story
  register-and-udpate

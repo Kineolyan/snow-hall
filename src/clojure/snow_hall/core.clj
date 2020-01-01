@@ -23,22 +23,22 @@
 (defn create-game-store
   []
   (let [registry (game-mgr/create-store)]
-    (do
-      (game-mgr/add-game
-        registry
-        {
-          :name "Code4Life"
-          :java "code4life.Referee"
-          :player-count 2})
-      registry)))
+    (game-mgr/add-game
+     registry
+     {:name "Code4Life"
+      :java "code4life.Referee"
+      :player-count 2})
+    registry))
 
 (defn create-visitor-registry
   []
-  (ref (snow-hall.hall.visitor/create-registry)))
+  (ref (snow-hall.hall.visitor/create-registry)
+       :validator snow-hall.hall.visitor/validate-fn))
 
 (defn create-hall-tab
   []
-  (ref (snow-hall.hall.butler/create-tab)))
+  (ref (snow-hall.hall.butler/create-tab)
+       :validator snow-hall.hall.butler/validate-fn))
 
 (defn create-app-routes
   []
@@ -46,9 +46,9 @@
                  :visitors (create-visitor-registry)
                  :tab (create-hall-tab)}]
     (apply cmpj/routes (concat
-                    basic-routes
-                    (snow-hall.games.rest/create-routes context)
-                    (snow-hall.hall.rest/create-routes context)))))
+                        basic-routes
+                        (snow-hall.games.rest/create-routes context)
+                        (snow-hall.hall.rest/create-routes context)))))
 
 (def app-site-config
   (update-in ring-defaults/site-defaults [:security] dissoc :anti-forgery))
@@ -60,7 +60,7 @@
       (json/wrap-json-response {:keywords? true :bigdecimals? true})
       (ring-defaults/wrap-defaults app-site-config)))
 
-(defn start-server 
+(defn start-server
   [port]
   (-> (create-app-routes)
       (create-handler)

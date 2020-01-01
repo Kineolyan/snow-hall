@@ -1,14 +1,26 @@
 (ns snow-hall.hall.visitor
   (:require
-   [medley.core :refer [random-uuid]]))
+   [clojure.spec.alpha :as s]
+   [medley.core :as uuids]
+   [snow-hall.validate :refer [create-validation]]))
 
+; Specs
+(s/def ::uuid string?)
+(s/def ::token string?)
+(s/def ::nickname string?)
+(s/def ::visitor (s/keys :req-un [::uuid ::token]
+                         :opt-un [::nickname]))
+(s/def ::visitors (s/map-of ::uuid ::visitor))
+
+; Methods
 (defn create-registry [] {})
+(def validate-fn (create-validation ::visitors))
 
 (defn create
   "Creates a new user, with only a UUID and its secret token"
   []
-  {:uuid (str (random-uuid))
-   :token (str (random-uuid))})
+  {:uuid (str (uuids/random-uuid))
+   :token (str (uuids/random-uuid))})
 
 (defn on
   [registry uuid action]
