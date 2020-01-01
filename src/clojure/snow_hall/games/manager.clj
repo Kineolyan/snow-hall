@@ -1,5 +1,6 @@
 (ns snow-hall.games.manager
-  (:require [clojure.spec.alpha :as s]))
+  (:require [clojure.spec.alpha :as s]
+            [snow-hall.validate :refer [create-validation]]))
 
 ; Specs
 
@@ -12,10 +13,12 @@
 
 ; methods
 
+(def validate-fn (create-validation ::games))
+
 (defn create-store
   "Creates a store holding all games that can be played"
   []
-  (ref {} :validator (partial s/valid? ::games)))
+  (ref {} :validator validate-fn))
 
 (defn add-game
   "Adds a new game to the server"

@@ -4,9 +4,8 @@
 
 (defn list-games-request [game-registry _req]
   (let [games (mgr/list-games game-registry)]
-    {:status  200
-      :headers {"Content-Type" "application/json"}
-      :body games}))
+    {:status 200
+     :body games}))
 
 (defn create-routes
   [{:keys [games]}]

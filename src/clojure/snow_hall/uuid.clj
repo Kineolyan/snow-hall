@@ -1,11 +1,13 @@
 (ns snow-hall.uuid
-  (:require [medley.core :as m]))
+  (:require [medley.core :as m])
+  (:refer-clojure :exclude [uuid?]))
 
 (def random-uuid m/random-uuid)
+(def uuid? m/uuid?)
 
 (defn ->uuid
   [value]
   (cond
-    (m/uuid? value) value
+    (uuid? value) value
     (string? value) (m/uuid value)
     :else (throw (IllegalArgumentException. (str "Cannot create uuid from " value)))))
