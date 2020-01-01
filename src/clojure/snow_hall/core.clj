@@ -20,12 +20,6 @@
   [
     (cmpj/GET "/ping" [] ping-request)])
 
-; (defn create-game-store
-;   []
-;   (-> (game-mgr/create-store)
-;       (game-mgr/add-game {:name "Code4Life"
-;                           :java "code4life.Referee"
-;                           :player-count 2})))
 (defn create-game-store
   []
   (let [registry (game-mgr/create-store)]
