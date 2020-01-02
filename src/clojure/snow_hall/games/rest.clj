@@ -3,7 +3,7 @@
             [compojure.core :as http]))
 
 (defn list-games-request [game-registry _req]
-  (let [games (mgr/list-games game-registry)]
+  (let [games (mgr/list-games @game-registry)]
     {:status 200
      :body games}))
 

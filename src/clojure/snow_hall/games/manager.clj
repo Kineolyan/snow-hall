@@ -13,20 +13,18 @@
 
 ; methods
 
-(def validate-fn (create-validation ::games))
-
 (defn create-store
   "Creates a store holding all games that can be played"
   []
-  (ref {} :validator validate-fn))
+  {})
+(def validate-fn (create-validation ::games))
 
 (defn add-game
   "Adds a new game to the server"
   [store game]
-  (dosync
-    (alter store assoc (:name game) game)))
+  (assoc store (:name game) game))
 
 (defn list-games
   "Lists all games available in this server"
   [store]
-  (vals @store))
+  (vals store))
