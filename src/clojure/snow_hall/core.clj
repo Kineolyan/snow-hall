@@ -22,13 +22,12 @@
 
 (defn create-game-store
   []
-  (let [registry (game-mgr/create-store)]
-    (game-mgr/add-game
-     registry
-     {:name "Code4Life"
-      :java "code4life.Referee"
-      :player-count 2})
-    registry))
+  (-> (game-mgr/create-store)
+      (game-mgr/add-game
+       {:name "Code4Life"
+        :java "code4life.Referee"
+        :player-count 2})
+      (ref :validator snow-hall.games.manager/validate-fn)))
 
 (defn create-visitor-registry
   []
