@@ -17,7 +17,8 @@
   :javac-options ["-target" "11" "-source" "11"]
   :profiles {
              :uberjar {:aot :all}
-             :test {
-                    :dependencies [[org.clojure/data.json "0.2.7"]]
-                    :test-selectors {:default (complement :integration)
+             :dev {:source-paths ["dev"]
+                   :dependencies [[org.clojure/tools.namespace "0.3.1"]
+                                  [org.clojure/data.json "0.2.7"]]}
+             :test {:test-selectors {:default (complement :integration)
                                      :integration :integration}}})
