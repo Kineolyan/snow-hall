@@ -19,6 +19,7 @@
              :uberjar {:aot :all}
              :dev {:source-paths ["dev"]
                    :dependencies [[org.clojure/tools.namespace "0.3.1"]
-                                  [org.clojure/data.json "0.2.7"]]}
+                                  [org.clojure/data.json "0.2.7"]
+                                  [ring/ring-devel "1.8.0"]]}
              :test {:test-selectors {:default (complement :integration)
                                      :integration :integration}}})

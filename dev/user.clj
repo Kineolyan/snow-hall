@@ -18,3 +18,11 @@
                          (map str) 
                          (filter (partial re-matches expr)) (map symbol))]
      (apply test/run-tests namespaces))))
+
+(def ze-server (atom nil))
+(defn run-project
+  []
+  (swap! ze-server
+         (fn [stop-server]
+           (when stop-server (stop-server))
+           (snow-hall.core/start-server 3003 true))))
