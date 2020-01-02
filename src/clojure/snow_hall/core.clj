@@ -85,7 +85,7 @@
 
 (defn -main
   "Starts the Game Server"
-  [& args]
+  [& _args]
   (let [port (Integer/getInteger "PORT" 3000)]
     (start-server port false)
     (println (str "Running server at http:/127.0.0.1:" port "/"))))

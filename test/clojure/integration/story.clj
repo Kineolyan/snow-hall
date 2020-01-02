@@ -12,7 +12,7 @@
 
 (defn ensure-server 
   []
-  (swap! server #(if (nil? %1) (start-server port) %1)))
+  (swap! server #(if (nil? %1) (start-server port false) %1)))
 
 (defmacro story
   [name & body]
