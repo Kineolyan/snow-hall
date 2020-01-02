@@ -1,14 +1,15 @@
 (ns snow-hall.core
   (:require
-    [org.httpkit.server :as server]
-    [compojure.core :as cmpj]
-    [ring.middleware.defaults :as ring-defaults]
-    [ring.middleware.json :as json]
-    [snow-hall.games.manager :as game-mgr]
-    [snow-hall.games.rest]
-    [snow-hall.hall.butler]
-    [snow-hall.hall.visitor]
-    [snow-hall.hall.rest])
+   [org.httpkit.server :as server]
+   [compojure.core :as cmpj]
+   [ring.middleware.defaults :as ring-defaults]
+   [ring.middleware.json :as json]
+   [ring.middleware.reload :as reload]
+   [snow-hall.games.manager :as game-mgr]
+   [snow-hall.games.rest]
+   [snow-hall.hall.butler]
+   [snow-hall.hall.visitor]
+   [snow-hall.hall.rest])
   (:gen-class))
 
 (defn ping-request [_req]
@@ -39,15 +40,18 @@
   (ref (snow-hall.hall.butler/create-tab)
        :validator snow-hall.hall.butler/validate-fn))
 
-(defn create-app-routes
+(defn create-context
   []
-  (let [context {:games  (create-game-store)
-                 :visitors (create-visitor-registry)
-                 :tab (create-hall-tab)}]
-    (apply cmpj/routes (concat
-                        basic-routes
-                        (snow-hall.games.rest/create-routes context)
-                        (snow-hall.hall.rest/create-routes context)))))
+  {:games  (create-game-store)
+   :visitors (create-visitor-registry)
+   :tab (create-hall-tab)})
+
+(defn create-app-routes
+  [context] 
+  (apply cmpj/routes (concat
+                      basic-routes
+                      (snow-hall.games.rest/create-routes context)
+                      (snow-hall.hall.rest/create-routes context))))
 
 (def app-site-config
   (update-in ring-defaults/site-defaults [:security] dissoc :anti-forgery))
@@ -59,15 +63,29 @@
       (json/wrap-json-response {:keywords? true :bigdecimals? true})
       (ring-defaults/wrap-defaults app-site-config)))
 
+(def dev-context nil)
+(defn- save-context
+  [ctx]
+  (alter-var-root #'dev-context (constantly ctx)))
 (defn start-server
-  [port]
-  (-> (create-app-routes)
+  [port dev]
+  (-> (create-context)
+      (#(do 
+          (when dev (save-context %))
+          %))
+      (create-app-routes)
       (create-handler)
-      (server/run-server {:port port})))
+      (#(if dev (reload/wrap-reload %) %))
+      (server/run-server {:port port})
+      (#(if-not dev
+           %
+          (fn [] 
+            (when dev (save-context nil))
+            (%))))))
 
 (defn -main
   "Starts the Game Server"
   [& _args]
   (let [port (Integer/getInteger "PORT" 3000)]
-    (start-server port)
+    (start-server port false)
     (println (str "Running server at http:/127.0.0.1:" port "/"))))
