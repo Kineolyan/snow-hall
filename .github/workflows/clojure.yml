@@ -1,9 +1,13 @@
 name: Pull Request CI
 
+# Disable for now this action because we want an external trigger
+# to make the integration with autosquash work better
+# See https://github.com/tibdex/autosquash/issues/25
 on:
   pull_request:
     branches:
-      - master
+      # - master
+      - not-a-real-branch
 
 jobs:
   build:
