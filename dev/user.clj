@@ -4,7 +4,7 @@
             [clojure.pprint :refer [pprint]]
             [clojure.repl :refer :all]
             [clojure.test :as test]
-            [clojure.tools.namespace.repl :as tnr]
+            [clojure.tools.namespace.repl :as tns]
             [snow-hall.core]))
 
 (defn run-my-tests
