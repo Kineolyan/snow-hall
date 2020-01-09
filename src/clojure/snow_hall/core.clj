@@ -73,15 +73,14 @@
       (#(do 
           (when dev (save-context %))
           %))
-      (create-app-routes)
-      (create-handler)
+      create-app-routes
+      create-handler
       (#(if dev (reload/wrap-reload %) %))
       (server/run-server {:port port})
-      (#(if-not dev
-           %
-          (fn [] 
-            (when dev (save-context nil))
-            (%))))))
+      (#((fn [] 
+           (when dev (save-context nil))
+           (shutdown-agents)
+           (%))))))
 
 (defn -main
   "Starts the Game Server"
