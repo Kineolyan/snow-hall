@@ -112,6 +112,14 @@
      :engine engine
      :state a-state}))
 
+(defn read-last-state
+  [round uuid]
+  (-> round
+      :state
+      deref
+      :last
+      (get uuid)))
+
 (defn play-round
   [round uuid move]
   (let [pid (.indexOf (:players round) uuid)
