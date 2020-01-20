@@ -7,6 +7,22 @@
             [clojure.tools.namespace.repl :as tns]
             [snow-hall.core]))
 
+(def resources (ref '()))
+
+(defn save-resource 
+  ([f] (save-resource "<unknown>" f))
+  ([name f]
+   (dosync
+    (alter resources (partial cons {:name name ::destroyer f})))))
+
+(defn reload 
+  []
+  (dosync
+   (doseq [res @resources]
+     (::destroyer res))
+   (ref-set resources '()))
+  (tns/refresh))
+
 (defn run-my-tests
   ([] (run-my-tests false))
   ([all]
