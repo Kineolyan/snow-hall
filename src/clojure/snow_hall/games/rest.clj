@@ -1,8 +1,19 @@
 (ns snow-hall.games.rest
-  (:require [snow-hall.uuid :refer [->uuid]]
+  (:require [compojure.core :as http]
+            [snow-hall.uuid :refer [->uuid]]
             [snow-hall.games.manager :as mgr]
             [snow-hall.games.round :as rounds]
-            [compojure.core :as http]))
+            [snow-hall.hall.rest :refer [with-visitor]]))
+
+
+(defn with-round
+  [rounds ruid-getter action]
+  (let [ruid (ruid-getter)
+        round (get rounds ruid)]
+    (if round
+      (action round)
+      {:status 404
+       :body (str "No round " (str ruid))})))
 
 (defn list-games-request [game-registry _req]
   (let [games (mgr/list-games @game-registry)]
@@ -24,17 +35,25 @@
    :body "Not implemented"})
 
 (defn get-state-request
-  [_rounds _visitors _ruid _uuid _req]
+  [_rounds _visitors _ruid _req]
   {:status 501
    :body "Not implemented"})
 
 (defn list-messages-request
-  [_rounds _visitors _ruid _uuid _req]
-  {:status 501
-   :body "Not implemented"})
+  [rounds visitors ruid req]
+  (with-visitor visitors
+    req
+    (fn [visitor]
+      (with-round
+        rounds
+        (constantly ruid)
+        (fn [round]
+          (let [messages (rounds/read-messages round (:uuid visitor))]
+            {:status 200
+             :body messages}))))))
 
 (defn play-request
-  [_rounds _visitors _ruid _uuid _req]
+  [_rounds _visitors _ruid _req]
   {:status 501
    :body "Not implemented"})
 
@@ -46,19 +65,15 @@
      (http/GET "/" [] (partial list-round-request rounds))
      (http/POST "/" [] (partial start-round-request rounds gatherings))
      (http/context "/:ruid" [ruid]
-       (http/context "/:uuid" [uuid]
-         (http/GET "/state" [] (partial get-state-request
-                                        rounds
-                                        visitors
-                                        (->uuid ruid)
-                                        (->uuid uuid)))
-         (http/GET "/messages" [] (partial list-messages-request
-                                           rounds
-                                           visitors
-                                           (->uuid ruid)
-                                           (->uuid uuid)))
-         (http/POST "/messages" [] (partial play-request
-                                            rounds
-                                            visitors
-                                            (->uuid ruid)
-                                            (->uuid uuid))))))])
+       (http/GET "/state" [] (partial get-state-request
+                                      rounds
+                                      visitors
+                                      (->uuid ruid)))
+       (http/GET "/messages" [] (partial list-messages-request
+                                         rounds
+                                         visitors
+                                         (->uuid ruid)))
+       (http/POST "/messages" [] (partial play-request
+                                          rounds
+                                          visitors
+                                          (->uuid ruid)))))])
