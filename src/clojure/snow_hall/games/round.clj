@@ -37,14 +37,16 @@
   {:pre [(contains? (:messages state) uuid)]}
   (update-in state
              [:messages uuid]
-             (comp filter (partial < last-timestamp))))
+             (partial filter (partial < last-timestamp))))
 
 (defn read-messages
   [round uuid]
   (let [a-state (:state round)
         messages (get-in @a-state [:messages uuid])
         last-timestamp (-> messages last :timestamp)]
-    (send a-state clear-old-messages uuid last-timestamp)))
+    (send a-state clear-old-messages uuid last-timestamp)
+    ; Returns the captured messages
+    messages))
 
 (defn- add-to-messages
   [state uuid content]
@@ -103,7 +105,7 @@
         state {:messages message-list :last {}}
         a-state (agent state
                        :meta {::round-state true}
-                       :validator (create-validation ::messages-data))
+                       :validator (create-validation ::state-data))
         engine (create-engine (count player-uuids))]
     (bind-engine a-state player-uuids engine)
     {:ruid (uuids/random-uuid)
@@ -124,7 +126,7 @@
   [round uuid move]
   (let [pid (.indexOf (:players round) uuid)
         ios (get-in round [:engine :ios])
-        in (->> ios (nth pid) :in)]
+        in (-> ios (nth pid) :in)]
     (>!! in move)))
 
 (defn kill-game
