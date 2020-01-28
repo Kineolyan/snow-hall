@@ -6,10 +6,12 @@
    [ring.middleware.json :as json]
    [ring.middleware.reload :as reload]
    [snow-hall.games.manager :as game-mgr]
-   [snow-hall.games.rest]
    [snow-hall.hall.butler]
    [snow-hall.hall.visitor]
-   [snow-hall.hall.rest])
+   [snow-hall.rest.games]
+   [snow-hall.rest.gatherings]
+   [snow-hall.rest.rounds]
+   [snow-hall.rest.visitors])
   (:gen-class))
 
 (defn ping-request [_req]
@@ -50,8 +52,10 @@
   [context] 
   (apply cmpj/routes (concat
                       basic-routes
-                      (snow-hall.games.rest/create-routes context)
-                      (snow-hall.hall.rest/create-routes context))))
+                      (snow-hall.rest.games/create-routes context)
+                      (snow-hall.rest.gatherings/create-routes context)
+                      (snow-hall.rest.rounds/create-routes context)
+                      (snow-hall.rest.visitors/create-routes context))))
 
 (def app-site-config
   (update-in ring-defaults/site-defaults [:security] dissoc :anti-forgery))

@@ -1,10 +1,8 @@
-(ns snow-hall.games.rest
+(ns snow-hall.rest.rounds
   (:require [compojure.core :as http]
             [snow-hall.uuid :refer [->uuid]]
-            [snow-hall.games.manager :as mgr]
             [snow-hall.games.round :as rounds]
-            [snow-hall.hall.rest :refer [with-visitor]]))
-
+            [snow-hall.rest.gatherings :refer [with-visitor]]))
 
 (defn with-round
   [rounds ruid-getter action]
@@ -14,11 +12,6 @@
       (action round)
       {:status 404
        :body (str "No round " (str ruid))})))
-
-(defn list-games-request [game-registry _req]
-  (let [games (mgr/list-games @game-registry)]
-    {:status 200
-     :body games}))
 
 (defn list-round-request
   [rounds _req]
@@ -58,10 +51,8 @@
    :body "Not implemented"})
 
 (defn create-routes
-  [{:keys [games rounds gatherings visitors]}]
-  [(http/context "/games" []
-     (http/GET "/" [] (partial list-games-request games)))
-   (http/context "/rounds" []
+  [{:keys [rounds gatherings visitors]}]
+  [(http/context "/rounds" []
      (http/GET "/" [] (partial list-round-request rounds))
      (http/POST "/" [] (partial start-round-request rounds gatherings))
      (http/context "/:ruid" [ruid]
