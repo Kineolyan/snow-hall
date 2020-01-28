@@ -56,15 +56,15 @@
         (update-in [:messages uuid] conj new-message)
         (update-in [:last uuid] new-message))))
 
-(defn send-message
-  [round uuid content]
-  (send (:state round) add-to-messages uuid content))
+(defn- send-message
+  [state uuid content]
+  (send state add-to-messages uuid content))
 
 (def end-message "-THE END-")
 
 (defn create-io
   []
-  {:in (chan) :out (chan)})
+  {:in (chan 1) :out (chan 1)})
 
 (defn- create-engine
   [player-count]
