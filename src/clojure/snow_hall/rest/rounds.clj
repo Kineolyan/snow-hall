@@ -25,13 +25,14 @@
 (defn start-round-request
   [rounds gatherings _visitors req]
   (let [guid (get-in req [:body "gathering"])
-        _ (do (prn (:body req)) (prn gatherings)) 
         gathering (get @gatherings guid)
         created-round (rounds/create-round gathering)]
     (dosync
      (alter rounds assoc (:ruid created-round) created-round))
     {:status 200
-     :body (dissoc created-round :state :engine)}))
+     :body (-> created-round
+               (dissoc :ruid :state :engine)
+               (assoc :id (:ruid created-round)))}))
 
 (defn get-state-request
   [_rounds _visitors _ruid _req]
@@ -40,11 +41,12 @@
 
 (defn list-messages-request
   [rounds visitors ruid req]
-  (with-visitor visitors
+  (with-visitor 
+    @visitors
     req
     (fn [visitor]
       (with-round
-        rounds
+        @rounds
         (constantly ruid)
         (fn [round]
           (let [messages (rounds/read-messages round (:uuid visitor))]
@@ -52,9 +54,15 @@
              :body messages}))))))
 
 (defn play-request
-  [_rounds _visitors _ruid _req]
-  {:status 501
-   :body "Not implemented"})
+  [rounds visitors ruid req]
+  (let [round (get @rounds ruid)
+        move (get-in req [:body "move"])]
+    (with-visitor
+      @visitors
+      req
+      #(rounds/play-round round (:uuid %) move))
+    {:status 200
+     :body "Ok"}))
 
 (defn create-routes
   [{:keys [rounds tab visitors]}]

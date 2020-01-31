@@ -7,6 +7,12 @@
   {"uuid" (user "uuid")
    "token" (user "token")})
 
+(defn auth-header
+  [user]
+  (str (user "uuid")
+       ":"
+       (user "token")))
+
 (story
  play-fake-game
  (let [context (atom {})]
@@ -45,5 +51,28 @@
                       {"user" (authenticate creator)
                        "gathering" (gathering "id")})]
            (is round)
-           (is (= (round "players") (map #(get % "token") [creator guest])))
-           (swap! context assoc :round round)))))
+           (is (= (round "players") (map #(get % "uuid") [creator guest])))
+           (swap! context assoc :round (round "id"))))
+   (step "play one turn"
+         (let [{:keys [round creator guest]} @context]
+           (s/post
+            (str "/rounds/" round "/messages")
+            {"user" (authenticate guest)
+             "move" "IDLE"})
+           (s/post
+            (str "/rounds/" round "/messages")
+            {"user" (authenticate creator)
+             "move" "MOVE 1"})))
+   (step "collect messages"
+         (let [{:keys [round creator guest]} @context]
+           (let [[msg :as c-msgs] (s/get
+                                   (str "/rounds/" round "/messages")
+                                   {"Authorization" (auth-header creator)})]
+             (is (= (count c-msgs) 1))
+             (is (= (msg "content") 1)))
+           (let [[msg :as g-msgs] (s/get
+                                   (str "/rounds/" round "/messages")
+                                   {"Authorization" (auth-header guest)})]
+             (is (= (count g-msgs) 1)
+                 )
+             (is (= (msg "content") 2)))))))
