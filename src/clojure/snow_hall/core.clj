@@ -6,6 +6,7 @@
    [ring.middleware.json :as json]
    [ring.middleware.reload :as reload]
    [snow-hall.games.manager :as game-mgr]
+   [snow-hall.games.round]
    [snow-hall.hall.butler]
    [snow-hall.hall.visitor]
    [snow-hall.rest.games]
@@ -42,11 +43,17 @@
   (ref (snow-hall.hall.butler/create-tab)
        :validator snow-hall.hall.butler/validate-fn))
 
+(defn create-round-registry
+  []
+  (ref (snow-hall.games.round/create-store)
+       :validator snow-hall.games.round/validate-fn))
+
 (defn create-context
   []
   {:games  (create-game-store)
    :visitors (create-visitor-registry)
-   :tab (create-hall-tab)})
+   :tab (create-hall-tab)
+   :rounds (create-round-registry)})
 
 (defn create-app-routes
   [context] 
@@ -81,10 +88,10 @@
       create-handler
       (#(if dev (reload/wrap-reload %) %))
       (server/run-server {:port port})
-      (#((fn [] 
-           (when dev (save-context nil))
-           (shutdown-agents)
-           (%))))))
+      (#(fn [] 
+          (when dev (save-context nil))
+          (shutdown-agents)
+          (%)))))
 
 (defn -main
   "Starts the Game Server"

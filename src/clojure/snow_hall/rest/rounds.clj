@@ -23,9 +23,15 @@
      :body content}))
 
 (defn start-round-request
-  [_rounds _gatherings _req]
-  {:status 501
-   :body "Not implemented"})
+  [rounds gatherings _visitors req]
+  (let [guid (get-in req [:body "gathering"])
+        _ (do (prn (:body req)) (prn gatherings)) 
+        gathering (get @gatherings guid)
+        created-round (rounds/create-round gathering)]
+    (dosync
+     (alter rounds assoc (:ruid created-round) created-round))
+    {:status 200
+     :body (dissoc created-round :state :engine)}))
 
 (defn get-state-request
   [_rounds _visitors _ruid _req]
@@ -51,10 +57,10 @@
    :body "Not implemented"})
 
 (defn create-routes
-  [{:keys [rounds gatherings visitors]}]
+  [{:keys [rounds tab visitors]}]
   [(http/context "/rounds" []
      (http/GET "/" [] (partial list-round-request rounds))
-     (http/POST "/" [] (partial start-round-request rounds gatherings))
+     (http/POST "/" [] (partial start-round-request rounds tab visitors))
      (http/context "/:ruid" [ruid]
        (http/GET "/state" [] (partial get-state-request
                                       rounds
