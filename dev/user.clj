@@ -5,7 +5,25 @@
             [clojure.repl :refer :all]
             [clojure.test :as test]
             [clojure.tools.namespace.repl :as tns]
+            [integration.story]
             [snow-hall.core]))
+
+(def resources (ref '()))
+
+(defn save-resource 
+  ([f] (save-resource "<unknown>" f))
+  ([name f]
+   (dosync
+    (alter resources (partial cons {:name name ::destroyer f})))))
+
+(defn reload 
+  []
+  (integration.story/clean-server)
+  (dosync
+   (doseq [res @resources]
+     (::destroyer res))
+   (ref-set resources '()))
+  (tns/refresh))
 
 (defn run-my-tests
   ([] (run-my-tests false))

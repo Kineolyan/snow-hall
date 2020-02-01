@@ -14,6 +14,10 @@
   []
   (swap! server #(if (nil? %1) (start-server port false) %1)))
 
+(defn clean-server
+  []
+  (swap! server #(when % (%))))
+
 (defmacro story
   [name & body]
   `(deftest ~(with-meta name {:integration true}) []

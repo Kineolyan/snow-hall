@@ -2,7 +2,7 @@
   (:require
    [clojure.test :refer [deftest testing is]]
    [snow-hall.hall.visitor :as visitor]
-   [snow-hall.hall.rest :as m]))
+   [snow-hall.rest.visitors :as m]))
 
 (defn request
   [body]
