@@ -35,9 +35,18 @@
                (assoc :id (:ruid created-round)))}))
 
 (defn get-state-request
-  [_rounds _visitors _ruid _req]
-  {:status 501
-   :body "Not implemented"})
+  [rounds visitors ruid req]
+  (with-visitor
+    @visitors
+    req
+    (fn [visitor]
+      (with-round
+        @rounds
+        (constantly ruid)
+        (fn [round]
+          (let [state (rounds/read-last-state round (:uuid visitor))]
+            {:status 200
+             :body state}))))))
 
 (defn list-messages-request
   [rounds visitors ruid req]

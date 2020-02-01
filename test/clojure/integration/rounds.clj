@@ -63,6 +63,7 @@
             (str "/rounds/" round "/messages")
             {"user" (authenticate creator)
              "move" "MOVE 1"})))
+   (Thread/sleep 1000) ; wait for messages
    (step "collect messages"
          (let [{:keys [round creator guest]} @context]
            (let [[msg :as c-msgs] (s/get
@@ -73,6 +74,12 @@
            (let [[msg :as g-msgs] (s/get
                                    (str "/rounds/" round "/messages")
                                    {"Authorization" (auth-header guest)})]
-             (is (= (count g-msgs) 1)
-                 )
-             (is (= (msg "content") 2)))))))
+             (is (= (count g-msgs) 1))
+             (is (= (msg "content") 2)))))
+   (step "get game state"
+         (let [{:keys [round creator]} @context
+               state (s/get
+                      (str "/rounds/" round "/state")
+                      {"Authorization" (auth-header creator)})]
+           (println state)
+           (is (= state 1))))))

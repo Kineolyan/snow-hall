@@ -116,6 +116,7 @@
 
 (defn read-last-state
   [round uuid]
+  (println @((comp :last :state) round))
   (-> round
       :state
       deref
@@ -133,3 +134,13 @@
   [round]
   (let [kill (get-in round [:engine :switch])]
     (kill)))
+
+(comment
+  (def us (repeatedly 2 uuids/random-uuid))
+  (def u1 (first us))
+  (def u2 (second us))
+  (def g {:players us :game "test"})
+  (def r1  (create-round g))
+  (play-round r1 u2 "IDLE")
+  (play-round r1 u1 "MOVE 1")
+  r1)
