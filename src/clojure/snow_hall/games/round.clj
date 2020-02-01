@@ -7,7 +7,7 @@
 
 (s/def ::ruid uuids/uuid?)
 (s/def ::game string?)
-(s/def ::engine nil?)
+(s/def ::engine (comp not nil?))
 (s/def ::timestamp int?)
 (s/def ::content (comp not nil?))
 (s/def ::message (s/keys ::req-un [::timestamp ::content]))
@@ -54,7 +54,7 @@
                      :content content}]
     (-> state
         (update-in [:messages uuid] conj new-message)
-        (update-in [:last uuid] new-message))))
+        (update-in [:last] assoc uuid new-message))))
 
 (defn- send-message
   [state uuid content]
@@ -116,7 +116,6 @@
 
 (defn read-last-state
   [round uuid]
-  (println @((comp :last :state) round))
   (-> round
       :state
       deref
@@ -136,6 +135,7 @@
     (kill)))
 
 (comment
+  ; small execution of the code for tests
   (def us (repeatedly 2 uuids/random-uuid))
   (def u1 (first us))
   (def u2 (second us))
@@ -143,4 +143,4 @@
   (def r1  (create-round g))
   (play-round r1 u2 "IDLE")
   (play-round r1 u1 "MOVE 1")
-  r1)
+  ((comp :last deref :state) r1))

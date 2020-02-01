@@ -23,16 +23,23 @@
      :body content}))
 
 (defn start-round-request
-  [rounds gatherings _visitors req]
+  [rounds gatherings visitors req]
   (let [guid (get-in req [:body "gathering"])
-        gathering (get @gatherings guid)
-        created-round (rounds/create-round gathering)]
-    (dosync
-     (alter rounds assoc (:ruid created-round) created-round))
-    {:status 200
-     :body (-> created-round
-               (dissoc :ruid :state :engine)
-               (assoc :id (:ruid created-round)))}))
+        gathering (get @gatherings guid)]
+    (with-visitor
+      @visitors
+      req
+      (fn [visitor]
+        (if (= ((comp first :players) gathering) (:uuid visitor))
+          (let [created-round (rounds/create-round gathering)]
+            (dosync
+             (alter rounds assoc (:ruid created-round) created-round))
+            {:status 200
+             :body (-> created-round
+                       (dissoc :ruid :state :engine)
+                       (assoc :id (:ruid created-round)))})
+          {:status 403
+           :body "Not the creator"})))))
 
 (defn get-state-request
   [rounds visitors ruid req]
@@ -50,7 +57,7 @@
 
 (defn list-messages-request
   [rounds visitors ruid req]
-  (with-visitor 
+  (with-visitor
     @visitors
     req
     (fn [visitor]

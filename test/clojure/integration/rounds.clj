@@ -81,5 +81,4 @@
                state (s/get
                       (str "/rounds/" round "/state")
                       {"Authorization" (auth-header creator)})]
-           (println state)
-           (is (= state 1))))))
+           (is (= (state "content") 1))))))
