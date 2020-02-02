@@ -30,10 +30,6 @@
   {})
 (def validate-fn (create-validation ::rounds))
 
-; (defprotocol Round
-;   "Abstraction for a round"
-;   )
-
 (defn- clear-old-messages
   "Clear the old messages from a given user.
   uuid identifies the user and last-timestamp is the timestamp of the last

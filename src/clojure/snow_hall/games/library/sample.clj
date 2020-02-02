@@ -8,8 +8,8 @@
 
 (defrecord SampleRound [ios stop]
   RoundEngine
-  (ios [] ios)
-  (stop [] (compare-and-set! stop false true)))
+  (ios [e] ios)
+  (stop [e] (compare-and-set! stop false true)))
 
 (def end-message "-THE END-")
 
@@ -37,7 +37,7 @@
 (def SampleGame
   (reify
     GameFactory
-    (create-engine []
+    (create-engine [f]
       (let [round (create)]
         (start round)
         round))))
