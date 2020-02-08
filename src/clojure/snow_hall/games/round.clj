@@ -4,6 +4,7 @@
             [snow-hall.validate :refer [create-validation]]
             [snow-hall.uuid :as uuids]
             [snow-hall.hall.visitor :as visitors]
+            [snow-hall.games.library.sample :as sg]
             [snow-hall.games.game :as game]))
 
 (s/def ::ruid uuids/uuid?)
@@ -76,13 +77,14 @@
 
 (defn create-round
   [gathering game]
+  {:pre [(= (:game gathering) (:name game))]}
   (let [player-uuids (:players gathering)
         message-list (into (hash-map) (map #(vector % []) player-uuids))
         state {:messages message-list :last {}}
         a-state (agent state
                        :meta {::round-state true}
                        :validator (create-validation ::state-data))
-        engine (game/create-engine game)]
+        engine (game/create-engine (:factory game))]
     (bind-engine a-state player-uuids engine)
     {:ruid (uuids/random-uuid)
      :game (:game gathering)
@@ -115,8 +117,12 @@
   (def us (repeatedly 2 uuids/random-uuid))
   (def u1 (first us))
   (def u2 (second us))
-  (def g {:players us :game "test"})
-  (def r1 (create-round g nil))
+  (def game sg/game-definition)
+  (:factory game)
+  (def gath {:players us :game (:name game)})
+  ; create the round
+  (def r1 (create-round gath sg/game-definition))
+  (:engine r1)
   (play-round r1 u2 "IDLE")
   (play-round r1 u1 "MOVE 1")
   ((comp :last deref :state) r1))

@@ -13,6 +13,15 @@
       {:status 404
        :body (str "No round " (str ruid))})))
 
+(defn with-game
+  [games name-getter action]
+  (let [name (name-getter)
+        game (get games name)]
+    (if game
+      (action game)
+      {:status 404
+       :body (str "No game " (str name))})))
+
 (defn list-round-request
   [rounds _req]
   (let [content (map #(hash-map :id (:ruid %)
@@ -23,23 +32,27 @@
      :body content}))
 
 (defn start-round-request
-  [rounds gatherings visitors req]
+  [rounds gatherings visitors games req]
   (let [guid (get-in req [:body "gathering"])
         gathering (get @gatherings guid)]
-    (with-visitor
-      @visitors
-      req
-      (fn [visitor]
-        (if (= ((comp first :players) gathering) (:uuid visitor))
-          (let [created-round (rounds/create-round gathering)]
-            (dosync
-             (alter rounds assoc (:ruid created-round) created-round))
-            {:status 200
-             :body (-> created-round
-                       (dissoc :ruid :state :engine)
-                       (assoc :id (:ruid created-round)))})
-          {:status 403
-           :body "Not the creator"})))))
+    (with-game
+      @games
+      (constantly (:game gathering))
+      (fn [game]
+        (with-visitor
+          @visitors
+          req
+          (fn [visitor]
+            (if (= ((comp first :players) gathering) (:uuid visitor))
+              (let [created-round (rounds/create-round gathering game)]
+                (dosync
+                 (alter rounds assoc (:ruid created-round) created-round))
+                {:status 200
+                 :body (-> created-round
+                           (dissoc :ruid :state :engine)
+                           (assoc :id (:ruid created-round)))})
+              {:status 403
+               :body "Not the creator"})))))))
 
 (defn get-state-request
   [rounds visitors ruid req]
@@ -81,10 +94,10 @@
      :body "Ok"}))
 
 (defn create-routes
-  [{:keys [rounds tab visitors]}]
+  [{:keys [rounds tab visitors games]}]
   [(http/context "/rounds" []
      (http/GET "/" [] (partial list-round-request rounds))
-     (http/POST "/" [] (partial start-round-request rounds tab visitors))
+     (http/POST "/" [] (partial start-round-request rounds tab visitors games))
      (http/context "/:ruid" [ruid]
        (http/GET "/state" [] (partial get-state-request
                                       rounds

@@ -34,10 +34,18 @@
    (repeatedly 2 create-io)
    (atom false)))
 
-(def SampleGame
+(def game-factory
   (reify
     GameFactory
     (create-engine [f]
       (let [round (create)]
         (start round)
         round))))
+
+(def game-definition
+  {:name "Sample"
+   :player-count 2
+   :factory game-factory})
+
+(comment
+  (snow-hall.games.game/create-engine game-factory))
