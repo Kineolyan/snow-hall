@@ -1,9 +1,11 @@
 (ns snow-hall.games.round
   (:require [clojure.spec.alpha :as s]
-            [clojure.core.async :as async :refer [chan go <! >! >!! close!]]
+            [clojure.core.async :as async :refer [<! >!!]]
             [snow-hall.validate :refer [create-validation]]
             [snow-hall.uuid :as uuids]
-            [snow-hall.hall.visitor :as visitors]))
+            [snow-hall.hall.visitor :as visitors]
+            [snow-hall.games.library.sample :as sg]
+            [snow-hall.games.game :as game]))
 
 (s/def ::ruid uuids/uuid?)
 (s/def ::game string?)
@@ -60,53 +62,29 @@
   [state uuid content]
   (send state add-to-messages uuid content))
 
-(def end-message "-THE END-")
-
-(defn create-io
-  []
-  {:in (chan 1) :out (chan 1)})
-
-(defn- create-engine
-  [player-count]
-  {:pre [(= player-count 2)]}
-  (let [io1 (create-io)
-        io2 (create-io)
-        stop (atom false)]
-    (go (do
-          (while (not @stop)
-            (let [m1 (<! (:in io1))
-                  m2 (<! (:in io2))]
-              (println (str m1 " - " m2))
-              (>! (:out io1) 1)
-              (>! (:out io2) 2)))
-          (doseq [io [io1 io2]]
-            (>! (:out io) end-message)
-            (close! (:out io))
-            (close! (:in io)))))
-    {:ios [io1 io2]
-     :switch #(compare-and-set! stop false true)}))
-
 (defn- bind-engine
   "Binds the game engine to the state of the game.
   This mostly reads the outputs of the game engine and generate the
   appropriate messages"
-  [a-state player-uuids {:keys [ios]}]
-  (doseq [[uuid {out :out}] (map vector player-uuids ios)]
-    (async/go-loop [continue true]
-      (when continue
-        (->> (<! out)
-             (send-message a-state uuid))
-        (recur true)))))
+  [a-state player-uuids round]
+  (let [ios (game/ios round)]
+    (doseq [[uuid {out :out}] (map vector player-uuids ios)]
+      (async/go-loop [continue true]
+        (when continue
+          (->> (<! out)
+               (send-message a-state uuid))
+          (recur true))))))
 
 (defn create-round
-  [gathering]
+  [gathering game]
+  {:pre [(= (:game gathering) (:name game))]}
   (let [player-uuids (:players gathering)
         message-list (into (hash-map) (map #(vector % []) player-uuids))
         state {:messages message-list :last {}}
         a-state (agent state
                        :meta {::round-state true}
                        :validator (create-validation ::state-data))
-        engine (create-engine (count player-uuids))]
+        engine (game/create-engine (:factory game))]
     (bind-engine a-state player-uuids engine)
     {:ruid (uuids/random-uuid)
      :game (:game gathering)
@@ -139,8 +117,12 @@
   (def us (repeatedly 2 uuids/random-uuid))
   (def u1 (first us))
   (def u2 (second us))
-  (def g {:players us :game "test"})
-  (def r1  (create-round g))
+  (def game sg/game-definition)
+  (:factory game)
+  (def gath {:players us :game (:name game)})
+  ; create the round
+  (def r1 (create-round gath sg/game-definition))
+  (:engine r1)
   (play-round r1 u2 "IDLE")
   (play-round r1 u1 "MOVE 1")
   ((comp :last deref :state) r1))

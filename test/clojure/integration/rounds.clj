@@ -23,7 +23,7 @@
                   :guest u2)))
    (step "find games to play"
          (let [games (s/get "/games")
-               one-game (first (filter #(= 2 (%1 "player-count")) games))]
+               one-game (first (filter #(= "Sample" (%1 "name")) games))]
            (is one-game)
            (swap! context assoc
                   :one-game one-game)))
@@ -51,6 +51,7 @@
                       {"user" (authenticate creator)
                        "gathering" (gathering "id")})]
            (is round)
+           (is (= (round "game") "Sample"))
            (is (= (round "players") (map #(get % "uuid") [creator guest])))
            (swap! context assoc :round (round "id"))))
    (step "play one turn"

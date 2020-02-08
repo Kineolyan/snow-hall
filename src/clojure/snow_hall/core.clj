@@ -7,6 +7,7 @@
    [ring.middleware.reload :as reload]
    [snow-hall.games.manager :as game-mgr]
    [snow-hall.games.round]
+   [snow-hall.games.library.sample]
    [snow-hall.hall.butler]
    [snow-hall.hall.visitor]
    [snow-hall.rest.games]
@@ -31,6 +32,7 @@
        {:name "Code4Life"
         :java "code4life.Referee"
         :player-count 2})
+      (game-mgr/add-game snow-hall.games.library.sample/game-definition)
       (ref :validator snow-hall.games.manager/validate-fn)))
 
 (defn create-visitor-registry
