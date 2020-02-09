@@ -30,7 +30,7 @@
   (->> (map #(% values) guards)
        (filter (comp not nil?))
        first
-       #(if (nil? %) (rejected %) (resolved values))))
+       (#(if (nil? %) (resolved values) (rejected %)))))
 
 (defn checked-with
   ([components guards]
@@ -65,4 +65,5 @@
   (with components #(dosync (ref-set s %)))
   @s
 
-  (checked-with components [(comp neg? :a)]))
+  (checked-with components [#(when (neg? (:a %)) "<hidden message>")])
+  (checked-with components [#(when (pos? (:a %)) "Not ok")]))
