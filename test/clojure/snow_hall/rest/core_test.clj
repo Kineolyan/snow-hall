@@ -50,19 +50,3 @@
                         :b get-b
                         :d do-fail})
                "ko"))))))
-
-(comment
-  (def get-a (constantly (resolved 1)))
-  (def get-b (comp resolved inc :a))
-  (def  get-c (constantly (resolved "c")))
-  ; (def do-fail #(if (seq %) (resolved "ok") (rejected "ko")))
-  (def do-fail (constantly (rejected "ko")))
-  (do-fail {:a 1})
-  (do-fail {})
-  (#'m/resolve-component [nil {}] [:d do-fail])
-  (#'m/resolve-component [nil {:a 1}] [:d do-fail])
-  (m/with {:a get-a})
-  (m/with {:d do-fail})
-  (m/with {:a get-a :d do-fail})
-  (m/with {:d do-fail :a get-a})
-  (clojure.test/run-tests *ns*))
