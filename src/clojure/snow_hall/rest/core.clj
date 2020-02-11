@@ -53,8 +53,11 @@
   (defn get-a [_] ((comp resolved first :a) ctx))
   (defn get-b [_] (resolved (get-in ctx [:b :b2])))
   (defn get-c [_] (resolved (get-in req [:body :info])))
+  (def get-from-a (comp resolved inc :a))
+  (get-from-a {:a 1})
 
   (resolve-component [nil {}] [:a get-a])
+  (resolve-component [nil {:a 1}] [:b get-from-a])
 
   (def components {:a get-a :b get-b :c get-c})
   (with components)
