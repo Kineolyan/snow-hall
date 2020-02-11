@@ -32,41 +32,35 @@
        first
        (#(if (nil? %) (resolved values) (rejected %)))))
 
+(defn- resolve-and-reduce
+  [acc entry]
+  (let [r (resolve-component acc entry)]
+    (if (resolved? r)
+      r
+      (reduced r))))
+
 (defn checked-with
+  "Resolves components and runs checks on them until the first failure.
+  This returns etheir all components or the first error.
+  If f is provided, the components are passed to f. Otherwise, it returns
+  the result wrapped in `resolved` or the first error wrapped in `rejected`."
   ([components guards]
    (checked-with components guards identity))
-  ([components guards consumer]
-   (->> (reduce resolve-component [::ok {}] components)
+  ([components guards f]
+   (->> (reduce 
+         resolve-and-reduce
+         [::ok {}] 
+         components)
         (map-resolved (partial check-guards guards))
-        (map-resolved consumer)
+        (map-resolved f)
         second)))
 
 (defn with
+  "Resolves components in order until the first failure.
+  This returns etheir all components or the first error.
+  If f is provided, the components are passed to f. Otherwise, it returns
+  the result wrapped in `resolved `or the first error wrapped in `rejected `."
   ([components]
    (checked-with components []))
-  ([components consumer]
-   (checked-with components [] consumer)))
-
-(comment
-  (def ctx {:a [1 2 3] :b {:b1 10 :b2 20}})
-  (def req {:body {:info "abc"}})
-  (defn get-a [_] ((comp resolved first :a) ctx))
-  (defn get-b [_] (resolved (get-in ctx [:b :b2])))
-  (defn get-c [_] (resolved (get-in req [:body :info])))
-  (def get-from-a (comp resolved inc :a))
-  (get-from-a {:a 1})
-
-  (resolve-component [nil {}] [:a get-a])
-  (resolve-component [nil {:a 1}] [:b get-from-a])
-
-  (def components {:a get-a :b get-b :c get-c})
-  (with components)
-  (defn get-fail [_] (rejected "Oops"))
-  (with {:d get-fail})
-
-  (def s (ref nil))
-  (with components #(dosync (ref-set s %)))
-  @s
-
-  (checked-with components [#(when (neg? (:a %)) "<hidden message>")])
-  (checked-with components [#(when (pos? (:a %)) "Not ok")]))
+  ([components f]
+   (checked-with components [] f)))
