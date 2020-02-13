@@ -26,11 +26,13 @@
     (map-resolved (partial assoc result k) r)))
 
 (defn- check-guards
-  [guards values]
-  (->> (map #(% values) guards)
-       (filter (comp not nil?))
-       first
-       (#(if (nil? %) (resolved values) (rejected %)))))
+  [guards [_ values :as r]]
+  (if (not (resolved? r))
+    r
+    (->> (map #(% values) guards)
+         (filter some?)
+         first
+         (#(if (nil? %) r (rejected %))))))
 
 (defn- resolve-and-reduce
   [acc entry]
@@ -47,11 +49,11 @@
   ([components guards]
    (checked-with components guards identity))
   ([components guards f]
-   (->> (reduce 
+   (->> (reduce
          resolve-and-reduce
-         [::ok {}] 
+         (resolved {})
          components)
-        (map-resolved (partial check-guards guards))
+        (check-guards guards)
         (map-resolved f)
         second)))
 

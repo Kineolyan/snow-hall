@@ -44,9 +44,9 @@
 
 (defn full-gathering?
   [gathering]
-  (when (not-any? (partial contains? :token) (:players gathering))
-    {:status 400
-     :body "Gathering not complete"}))
+  (when (some :token (:players gathering))
+    (rejected {:status 400
+               :body "Gathering not complete"})))
 
 (defn list-round-request
   [{:keys [rounds]} _req]
@@ -58,15 +58,17 @@
      :body content}))
 
 (defn start-round-request
-  [{:keys [rounds gatherings visitors games]} req]
+  [{:keys [rounds tab visitors games]} req]
   (checked-with
-   (sorted-map
-    :gathering (partial with-gathering @gatherings
-                        (constantly (get-in req [:body "gathering"])))
-    :game #(with-game @games (get-in %1 [:gathering :game]))
-    :visitor (partial int-with-visitor @visitors req))
+   [
+    [:gathering (partial with-gathering
+                         @tab
+                         (constantly (get-in req [:body "gathering"])))]
+    [:game #(with-game @games (constantly (get-in % [:gathering :game])))]
+    [:visitor (partial int-with-visitor @visitors req)]]
    [#(full-gathering? (:gathering %))]
    (fn [{:keys [gathering game visitor]}]
+     (println (str "playing " gathering))
      (if (= ((comp first :players) gathering) (:uuid visitor))
        (let [created-round (rounds/create-round gathering game)]
          (dosync
@@ -99,7 +101,7 @@
         :body messages}))))
 
 (defn play-request
-  [rounds visitors ruid req]
+  [{:keys [rounds visitors]} ruid req]
   (with
    {:visitor (partial int-with-visitor @visitors req)
     :round (partial with-round @rounds (constantly ruid))}
