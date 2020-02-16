@@ -75,8 +75,21 @@
         (m/with {:a get-a} #(dosync (ref-set r %)))
         (is (= {:a 1} @r))))))
 
-(comment
-  (def r (ref nil))
-  (def get-a (constantly (resolved 1)))
-  @r)
-(clojure.test/run-tests *ns*)
+(deftest checked-with
+  (let [get-1 (constantly (resolved 1))
+        get-0 (constantly (resolved 0))
+        is-a-pos? #(when-not (pos? (:a %)) "Not pos")
+        is-b-zero? #(when-not (zero? (:b %)) "Not zero")]
+    (testing "resolution with passing checks"
+      (is (= (m/checked-with {:a get-1
+                              :b get-0}
+                             [is-a-pos? is-a-pos?])
+             {:a 1 :b 0})))
+    (testing "failure on first failed check"
+      (is (= (m/checked-with {:a get-0 :b get-1}
+                             [is-b-zero? is-a-pos?])
+             "Not zero")))
+    (testing "failure after various successes"
+      (is (= (m/checked-with {:a get-1 :b get-1}
+                             [is-a-pos? is-a-pos? is-b-zero?])
+             "Not zero")))))

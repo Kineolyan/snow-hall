@@ -6,7 +6,7 @@
             [snow-hall.rest.gatherings :refer [with-visitor]]))
 
 (defn with-round
-  [rounds ruid-getter]
+  [rounds ruid-getter & _]
   (let [ruid (ruid-getter)
         round (get rounds ruid)]
     (if round
@@ -15,7 +15,7 @@
                  :body (str "No round " (str ruid))}))))
 
 (defn with-gathering
-  [gatherings guid-getter _]
+  [gatherings guid-getter & _]
   (let [guid (guid-getter)
         gathering (get gatherings guid)]
     (if guid
@@ -68,7 +68,6 @@
     [:visitor (partial int-with-visitor @visitors req)]]
    [#(full-gathering? (:gathering %))]
    (fn [{:keys [gathering game visitor]}]
-     (println (str "playing " gathering))
      (if (= ((comp first :players) gathering) (:uuid visitor))
        (let [created-round (rounds/create-round gathering game)]
          (dosync
