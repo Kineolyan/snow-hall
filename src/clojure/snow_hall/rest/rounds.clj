@@ -32,16 +32,6 @@
       (rejected {:status 404
                  :body (str "No game " (str name))}))))
 
-(defn int-with-visitor
-  [visitors req _]
-  (let [result (with-visitor
-                 visitors
-                 req
-                 (fn [visitor] visitor))]
-    (if (contains? result :status)
-      (rejected result)
-      (resolved result))))
-
 (defn full-gathering?
   [gathering]
   (when (some :token (:players gathering))
@@ -65,7 +55,7 @@
                          @tab
                          (constantly (get-in req [:body "gathering"])))]
     [:game #(with-game @games (constantly (get-in % [:gathering :game])))]
-    [:visitor (partial int-with-visitor @visitors req)]]
+    [:visitor (partial with-visitor @visitors req)]]
    [#(full-gathering? (:gathering %))]
    (fn [{:keys [gathering game visitor]}]
      (if (= ((comp first :players) gathering) (:uuid visitor))
@@ -82,7 +72,7 @@
 (defn get-state-request
   [{:keys [rounds visitors]} ruid req]
   (with
-   {:visitor (partial int-with-visitor @visitors req)
+   {:visitor (partial with-visitor @visitors req)
     :round (partial with-round @rounds (constantly ruid))}
    (fn [{:keys [visitor round]}]
      (let [state (rounds/read-last-state round (:uuid visitor))]
@@ -92,7 +82,7 @@
 (defn list-messages-request
   [{:keys [rounds visitors]} ruid req]
   (with
-   {:visitor (partial int-with-visitor @visitors req)
+   {:visitor (partial with-visitor @visitors req)
     :round (partial with-round @rounds (constantly ruid))}
    (fn [{:keys [visitor round]}]
      (let [messages (rounds/read-messages round (:uuid visitor))]
@@ -102,7 +92,7 @@
 (defn play-request
   [{:keys [rounds visitors]} ruid req]
   (with
-   {:visitor (partial int-with-visitor @visitors req)
+   {:visitor (partial with-visitor @visitors req)
     :round (partial with-round @rounds (constantly ruid))}
    (fn [{:keys [visitor round]}]
      (let [move (get-in req [:body "move"])]
