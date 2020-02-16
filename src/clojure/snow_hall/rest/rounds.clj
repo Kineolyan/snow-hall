@@ -2,28 +2,44 @@
   (:require [compojure.core :as http]
             [snow-hall.uuid :refer [->uuid]]
             [snow-hall.games.round :as rounds]
+            [snow-hall.rest.core :refer [checked-with with resolved rejected]]
             [snow-hall.rest.gatherings :refer [with-visitor]]))
 
 (defn with-round
-  [rounds ruid-getter action]
+  [rounds ruid-getter & _]
   (let [ruid (ruid-getter)
         round (get rounds ruid)]
     (if round
-      (action round)
-      {:status 404
-       :body (str "No round " (str ruid))})))
+      (resolved round)
+      (rejected {:status 404
+                 :body (str "No round " (str ruid))}))))
+
+(defn with-gathering
+  [gatherings guid-getter & _]
+  (let [guid (guid-getter)
+        gathering (get gatherings guid)]
+    (if guid
+      (resolved gathering)
+      (rejected {:status 404
+                 :body (str "No gathering " (str guid))}))))
 
 (defn with-game
-  [games name-getter action]
+  [games name-getter]
   (let [name (name-getter)
         game (get games name)]
     (if game
-      (action game)
-      {:status 404
-       :body (str "No game " (str name))})))
+      (resolved game)
+      (rejected {:status 404
+                 :body (str "No game " (str name))}))))
+
+(defn full-gathering?
+  [gathering]
+  (when (some :token (:players gathering))
+    (rejected {:status 400
+               :body "Gathering not complete"})))
 
 (defn list-round-request
-  [rounds _req]
+  [{:keys [rounds]} _req]
   (let [content (map #(hash-map :id (:ruid %)
                                 :players (:players %)
                                 :game (:game %))
@@ -32,82 +48,70 @@
      :body content}))
 
 (defn start-round-request
-  [rounds gatherings visitors games req]
-  (let [guid (get-in req [:body "gathering"])
-        gathering (get @gatherings guid)]
-    (with-game
-      @games
-      (constantly (:game gathering))
-      (fn [game]
-        (with-visitor
-          @visitors
-          req
-          (fn [visitor]
-            (if (= ((comp first :players) gathering) (:uuid visitor))
-              (let [created-round (rounds/create-round gathering game)]
-                (dosync
-                 (alter rounds assoc (:ruid created-round) created-round))
-                {:status 200
-                 :body (-> created-round
-                           (dissoc :ruid :state :engine)
-                           (assoc :id (:ruid created-round)))})
-              {:status 403
-               :body "Not the creator"})))))))
+  [{:keys [rounds tab visitors games]} req]
+  (checked-with
+   [
+    [:gathering (partial with-gathering
+                         @tab
+                         (constantly (get-in req [:body "gathering"])))]
+    [:game #(with-game @games (constantly (get-in % [:gathering :game])))]
+    [:visitor (partial with-visitor @visitors req)]]
+   [#(full-gathering? (:gathering %))]
+   (fn [{:keys [gathering game visitor]}]
+     (if (= ((comp first :players) gathering) (:uuid visitor))
+       (let [created-round (rounds/create-round gathering game)]
+         (dosync
+          (alter rounds assoc (:ruid created-round) created-round))
+         {:status 200
+          :body (-> created-round
+                    (dissoc :ruid :state :engine)
+                    (assoc :id (:ruid created-round)))})
+       {:status 403
+        :body "Not the creator"}))))
 
 (defn get-state-request
-  [rounds visitors ruid req]
-  (with-visitor
-    @visitors
-    req
-    (fn [visitor]
-      (with-round
-        @rounds
-        (constantly ruid)
-        (fn [round]
-          (let [state (rounds/read-last-state round (:uuid visitor))]
-            {:status 200
-             :body state}))))))
+  [{:keys [rounds visitors]} ruid req]
+  (with
+   {:visitor (partial with-visitor @visitors req)
+    :round (partial with-round @rounds (constantly ruid))}
+   (fn [{:keys [visitor round]}]
+     (let [state (rounds/read-last-state round (:uuid visitor))]
+       {:status 200
+        :body state}))))
 
 (defn list-messages-request
-  [rounds visitors ruid req]
-  (with-visitor
-    @visitors
-    req
-    (fn [visitor]
-      (with-round
-        @rounds
-        (constantly ruid)
-        (fn [round]
-          (let [messages (rounds/read-messages round (:uuid visitor))]
-            {:status 200
-             :body messages}))))))
+  [{:keys [rounds visitors]} ruid req]
+  (with
+   {:visitor (partial with-visitor @visitors req)
+    :round (partial with-round @rounds (constantly ruid))}
+   (fn [{:keys [visitor round]}]
+     (let [messages (rounds/read-messages round (:uuid visitor))]
+       {:status 200
+        :body messages}))))
 
 (defn play-request
-  [rounds visitors ruid req]
-  (let [round (get @rounds ruid)
-        move (get-in req [:body "move"])]
-    (with-visitor
-      @visitors
-      req
-      #(rounds/play-round round (:uuid %) move))
-    {:status 200
-     :body "Ok"}))
+  [{:keys [rounds visitors]} ruid req]
+  (with
+   {:visitor (partial with-visitor @visitors req)
+    :round (partial with-round @rounds (constantly ruid))}
+   (fn [{:keys [visitor round]}]
+     (let [move (get-in req [:body "move"])]
+       (rounds/play-round round (:uuid visitor) move)
+       {:status 200
+        :body "Ok"}))))
 
 (defn create-routes
-  [{:keys [rounds tab visitors games]}]
+  [context]
   [(http/context "/rounds" []
-     (http/GET "/" [] (partial list-round-request rounds))
-     (http/POST "/" [] (partial start-round-request rounds tab visitors games))
+     (http/GET "/" [] (partial list-round-request context))
+     (http/POST "/" [] (partial start-round-request context))
      (http/context "/:ruid" [ruid]
        (http/GET "/state" [] (partial get-state-request
-                                      rounds
-                                      visitors
+                                      context
                                       (->uuid ruid)))
        (http/GET "/messages" [] (partial list-messages-request
-                                         rounds
-                                         visitors
+                                         context
                                          (->uuid ruid)))
        (http/POST "/messages" [] (partial play-request
-                                          rounds
-                                          visitors
+                                          context
                                           (->uuid ruid)))))])
