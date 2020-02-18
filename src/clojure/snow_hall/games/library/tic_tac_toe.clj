@@ -126,10 +126,10 @@
               game (create-game)
               stopped false]
       (if-not stopped
-        (do 
+        (do
           (doseq [out [out1 out2]]
-            (>! out game))
-          (let [[m c] (alts! [stop io1 io2])]
+            (>! out (game->str game)))
+          (let [[m c] (alts! [stop in1 in2])]
             (cond
             ; Halt message, we must stop
               (= c stop) (recur turn game true)
@@ -156,7 +156,7 @@
   []
   (TicTacToeRound.
    (repeatedly 2 create-io)
-   (create-io)))
+   (chan 1)))
 
 (def game-factory
   (reify
@@ -172,4 +172,20 @@
    :factory game-factory})
 
 (comment
-  (def round (snow-hall.games.game/create-engine game-factory)))
+  (def round (snow-hall.games.game/create-engine game-factory))
+  round
+  (def in1 ((comp :in first :ios) round))
+  (def out1 ((comp :out first :ios) round))
+  (def in2 ((comp :in second :ios) round))
+  (def out2 ((comp :out second :ios) round))
+  (clojure.core.async/go (while true 
+                           (do (println (str "p1 -> " (clojure.core.async/<! out1)))
+                               (println (str "p2 -> " (clojure.core.async/<! out2))))))
+  (clojure.core.async/offer! in1 [0 0])
+  (clojure.core.async/offer! in2 [0 1])
+  (clojure.core.async/offer! in1 [1 0])
+  (clojure.core.async/offer! in2 [1 2])
+  (clojure.core.async/offer! in1 [2 2])
+  (clojure.core.async/offer! in1 [0 2])
+  (clojure.core.async/poll! out2))
+
