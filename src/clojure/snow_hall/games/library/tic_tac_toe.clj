@@ -1,5 +1,5 @@
 (ns snow-hall.games.library.tic-tac-toe
-  (:require [clojure.core.async :as async :refer [chan go <! >! close!]]
+  (:require [clojure.core.async :as async :refer [chan go-loop alts! >! close!]]
             [snow-hall.games.game :refer [GameFactory RoundEngine]]))
 
 (def player-symbols
@@ -36,6 +36,10 @@
   "Game left-down to right-up diagonal"
   [game]
   (map #(get-value game [(- 2 %) %]) (range 3)))
+
+(defn get-positions
+  [game]
+  (flatten game))
 
 (defn get-combinations
   [game]
@@ -85,9 +89,10 @@
   (get-col g1 1)
   (play-move g 0 [0 0])
   (play-move g 1 [2 1])
+  (get-positions g1)
   (get-combinations g1)
   (win? g1 0)
-  
+
   (def g2 (-> g1
               (play-move 0 [0 0])
               (play-move 0 [1 0])
@@ -107,26 +112,51 @@
 
 (def end-message "-THE END-")
 
+(defn game->str
+  [game]
+  (->> game
+       (get-positions)
+       (map #(or % "-"))
+       (apply str)))
+
 (defn- start
   [{:keys [ios stop]}]
-  (let [[io1 io2] ios]
-    (go (do
-          (while (not @stop)
-            (let [m1 (<! (:in io1))
-                  m2 (<! (:in io2))]
-              (println (str m1 " - " m2))
-              (>! (:out io1) 1)
-              (>! (:out io2) 2)))
-          (doseq [io [io1 io2]]
-            (>! (:out io) end-message)
-            (close! (:out io))
-            (close! (:in io)))))))
+  (let [[{in1 :in out1 :out :as io1} {in2 :in out2 :out :as io2}] ios]
+    (go-loop [turn :p1
+              game (create-game)
+              stopped false]
+      (if-not stopped
+        (do 
+          (doseq [out [out1 out2]]
+            (>! out game))
+          (let [[m c] (alts! [stop io1 io2])]
+            (cond
+            ; Halt message, we must stop
+              (= c stop) (recur turn game true)
+            ; legal moves from one of the players
+              (and (= turn :p1) (= c in1)) (recur :p2
+                                                  (update-game game 0 m)
+                                                  false)
+              (and (= turn :p2) (= c in2)) (recur :p1
+                                                  (update-game game 1 m)
+                                                  false)
+            ; handling illegal moves
+              (and (= turn :p1) (= c in2)) (do (>! out2 "LOSS: NOT YOUR TURN")
+                                               (>! out1 "WIN: ILLEGAL MOVE")
+                                               (recur turn game true))
+              (and (= turn :p2) (= c in1)) (do (>! out1 "LOSS: NOT YOUR TURN")
+                                               (>! out2 "WIN: ILLEGAL MOVE")
+                                               (recur turn game true)))))
+        (doseq [io [io1 io2]]
+          (>! (:out io) end-message)
+          (close! (:out io))
+          (close! (:in io)))))))
 
 (defn- create
   []
   (TicTacToeRound.
    (repeatedly 2 create-io)
-   (atom false)))
+   (create-io)))
 
 (def game-factory
   (reify
@@ -142,4 +172,4 @@
    :factory game-factory})
 
 (comment
-  (snow-hall.games.game/create-engine game-factory))
+  (def round (snow-hall.games.game/create-engine game-factory)))
