@@ -2,16 +2,9 @@
   (:require [clojure.core.async :as async :refer [chan go <! >! close!]]
             [snow-hall.games.game :refer [GameFactory RoundEngine]]))
 
-(defn create-io
-  []
-  {:in (chan 1) :out (chan 1)})
-
-(defrecord TicTacToeRound [ios stop]
-  RoundEngine
-  (ios [e] ios)
-  (stop [e] (compare-and-set! stop false true)))
-
-(def end-message "-THE END-")
+(def player-symbols
+  {0 "X"
+   1 "O"})
 
 (defn get-value
   "Gets the cell at [x, y] in the game board."
@@ -24,9 +17,42 @@
       (nth x)
       (nth y)))
 
-(def player-symbols
-  {0 "X"
-   1 "O"})
+(defn get-row
+  "Gets the row x of the game"
+  [game x]
+  (nth game x))
+
+(defn get-col
+  "Gets the column y of the game"
+  [game y]
+  (map #(nth % y) game))
+
+(defn get-diag-lurd
+  "Game left-up to right-down diagonal"
+  [game]
+  (map #(get-value game [% %]) (range 3)))
+
+(defn get-diag-ldru
+  "Game left-down to right-up diagonal"
+  [game]
+  (map #(get-value game [(- 2 %) %]) (range 3)))
+
+(defn get-combinations
+  [game]
+  (concat (map (partial get-row game) (range 3))
+          (map (partial get-col game) (range 3))
+          [(get-diag-ldru game) (get-diag-lurd game)]))
+
+(defn winning-combination?
+  [player row]
+  (every? (partial = (player-symbols player)) row))
+
+(defn win?
+  "Tests if a game is a win for a player"
+  [game player]
+  (->> game
+       (get-combinations)
+       (some (partial winning-combination? player))))
 
 (defn create-game
   "Creates a standard board of Tic-Tac-Toe of 3x3.
@@ -46,9 +72,40 @@
 (defn update-game
   [game player-id pos]
   (if (get-value game pos)
-    "LOSS"
+    "CHEATING"
     (let [next-game (play-move game player-id pos)]
       next-game)))
+
+(comment
+  (def g (create-game))
+  (def g1 (-> g
+              (play-move 0 [0 0])
+              (play-move 1 [2 1])))
+  (get-row g1 0)
+  (get-col g1 1)
+  (play-move g 0 [0 0])
+  (play-move g 1 [2 1])
+  (get-combinations g1)
+  (win? g1 0)
+  
+  (def g2 (-> g1
+              (play-move 0 [0 0])
+              (play-move 0 [1 0])
+              (play-move 0 [2 0])))
+  (map (partial win? g2) (range 2)))
+
+; -- Creating the rounds and piping
+
+(defn create-io
+  []
+  {:in (chan 1) :out (chan 1)})
+
+(defrecord TicTacToeRound [ios stop]
+  RoundEngine
+  (ios [e] ios)
+  (stop [e] (compare-and-set! stop false true)))
+
+(def end-message "-THE END-")
 
 (defn- start
   [{:keys [ios stop]}]
@@ -67,7 +124,7 @@
 
 (defn- create
   []
-  (SampleRound.
+  (TicTacToeRound.
    (repeatedly 2 create-io)
    (atom false)))
 
@@ -85,7 +142,4 @@
    :factory game-factory})
 
 (comment
-  (def g (create-game))
-  (play-move g 0 [0 0])
-  (play-move g 1 [2 1])
   (snow-hall.games.game/create-engine game-factory))
