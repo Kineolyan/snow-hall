@@ -1,6 +1,6 @@
 (ns snow-hall.games.round
   (:require [clojure.spec.alpha :as s]
-            [clojure.core.async :as async :refer [<! >!!]]
+            [clojure.core.async :as async :refer [<! offer!]]
             [snow-hall.validate :refer [create-validation]]
             [snow-hall.uuid :as uuids]
             [snow-hall.hall.visitor :as visitors]
@@ -105,7 +105,7 @@
   (let [pid (.indexOf (:players round) uuid)
         ios (get-in round [:engine :ios])
         in (-> ios (nth pid) :in)]
-    (>!! in move)))
+    (offer! in move)))
 
 (defn kill-game
   [round]

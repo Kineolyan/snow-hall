@@ -108,7 +108,7 @@
 (defrecord TicTacToeRound [ios stop]
   RoundEngine
   (ios [e] ios)
-  (stop [e] (compare-and-set! stop false true)))
+  (stop [e] (async/offer! stop true)))
 
 (def end-message "-THE END-")
 
