@@ -38,6 +38,7 @@
   (map #(get-value game [(- 2 %) %]) (range 3)))
 
 (defn get-positions
+  "Gets all positions back to back."
   [game]
   (flatten game))
 
