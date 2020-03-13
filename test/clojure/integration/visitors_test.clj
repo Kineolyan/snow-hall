@@ -1,4 +1,4 @@
-(ns integration.visitors
+(ns integration.visitors-test
   (:require [integration.story :as s :refer [story step]]
             [clojure.test :refer (is)]))
 

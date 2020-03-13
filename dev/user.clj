@@ -29,7 +29,7 @@
   ([] (run-my-tests false))
   ([all]
    (let [expr (if all  
-                #"snow-hall\..+-test|integration\..+"  
+                #"snow-hall\..+-test|integration\..+-test"  
                 #"snow-hall\..+-test")
          namespaces (->> (all-ns) 
                          (map ns-name) 

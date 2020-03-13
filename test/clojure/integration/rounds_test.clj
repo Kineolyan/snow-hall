@@ -1,4 +1,4 @@
-(ns integration.rounds
+(ns integration.rounds-test
   (:require [integration.story :as s :refer [story step]]
             [clojure.test :refer (is)]))
 

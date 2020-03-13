@@ -1,4 +1,4 @@
-(ns integration.gatherings
+(ns integration.gatherings-test
   (:require [integration.story :as s :refer [story step]]
             [clojure.test :refer (is)]))
 
