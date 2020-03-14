@@ -13,29 +13,31 @@
    (str "/rounds/" round "/messages")
    {"Authorization" (auth-header player)}))
 
-(defn wait-for-next-message
-  [round player]
-  (loop [i 0]
-    (let [msgs [(s/get
-                 (str "/rounds/" round "/messages")
-                 {"Authorization" (auth-header player)})]]
-      (is (>= 1 (count msgs)))
-      (is (< i 100))
-      (if (seq msgs)
-        (first msgs)
-        (do (Thread/sleep 10)
-            (recur (inc i)))))))
+(defn wait-for-next-messages
+  [round player n]
+  (loop [i 0 received []]
+    (let [msgs (s/get
+                (str "/rounds/" round "/messages")
+                {"Authorization" (auth-header player)})
+          rcv (concat received msgs)]
+      (when (>= i 100)
+        (throw (AssertionError. (str "Too many iterations without all messages. Got: " rcv))))
+      (condp #(%1 %2 n) (count rcv)
+        = rcv
+        > (throw (AssertionError. (str "Too many messages: " rcv)))
+        < (do (Thread/sleep 10)
+              (recur (inc i) rcv))))))
 
 (defn play
   "Plays for the player and checks the new state"
-  [round player position next-state]
+  [round player position & expected-msgs]
   (consume-all-messages round player)
   (s/post
    (str "/rounds/" round "/messages")
    {"user" (authenticate player)
     "move" position})
-  (let [msg (wait-for-next-message round player)]
-    (is (= (msg "content") next-state))))
+  (let [msgs (wait-for-next-messages round player (count expected-msgs))]
+    (is (= (map #(get % "content") msgs) expected-msgs))))
 
 (story
  play-tic-tac-toe
@@ -57,15 +59,17 @@
            (swap! context assoc :round (round "id"))))
    (Thread/sleep 100) ; give some time for the initial messages
    (step "play one turn"
-         (let [{:keys [round creator guest]} @context]
+         (let [{:keys [round creator]} @context]
            (play round creator [0 0] "X--------")))
    (step "play to guest victory"
          (let [{:keys [round creator guest]} @context]
            (play round guest [2 2] "X-------O")
            (play round creator [1 1] "X---X---O")
            (play round guest [2 1] "X---X--OO")
-           (play round creator [0 2] "X-X--X--OO")
-           (play round guest [2 0] "WIN")))
+           (play round creator [0 2] "X-X-X--OO")))
+   (step "play victory move"
+         (let [{:keys [round guest]} @context]
+           (play round guest [2 0] "X-X-X-OOO" "WIN")))
    (step "get final game state"
          (let [{:keys [round creator]} @context
                state (s/get

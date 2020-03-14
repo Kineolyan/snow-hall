@@ -31,7 +31,7 @@
   {})
 (def validate-fn (create-validation ::rounds))
 
-(defn- clear-old-messages
+(defn clear-old-messages
   "Clear the old messages from a given user.
   uuid identifies the user and last-timestamp is the timestamp of the last
   message read by the user."
@@ -39,18 +39,19 @@
   {:pre [(contains? (:messages state) uuid)]}
   (update-in state
              [:messages uuid]
-             (partial filter (partial < last-timestamp))))
+             #(into [] (for [m % :when (> (:timestamp m) last-timestamp)] m))))
 
 (defn read-messages
   [round uuid]
-  (let [a-state (:state round)
-        messages (get-in @a-state [:messages uuid])
+  (let [state-agent (:state round)
+        messages (get-in @state-agent [:messages uuid])
         last-timestamp (-> messages last :timestamp)]
-    (send a-state clear-old-messages uuid last-timestamp)
+    (when last-timestamp
+      (send state-agent clear-old-messages uuid last-timestamp))
     ; Returns the captured messages
     messages))
 
-(defn- add-to-messages
+(defn add-to-messages
   [state uuid content]
   (let [new-message {:timestamp (System/currentTimeMillis)
                      :content content}]
@@ -58,32 +59,39 @@
         (update-in [:messages uuid] conj new-message)
         (update-in [:last] assoc uuid new-message))))
 
-(defn- send-message
+(defn send-message
   [state uuid content]
   (send state add-to-messages uuid content))
 
-(defn- bind-engine
+(defn bind-engine
   "Binds the game engine to the state of the game.
   This mostly reads the outputs of the game engine and generate the
   appropriate messages"
   [a-state player-uuids round]
   (let [ios (game/ios round)]
     (doseq [[uuid {out :out}] (map vector player-uuids ios)]
-      (async/go-loop [continue true]
-        (when continue
-          (->> (<! out)
-               (send-message a-state uuid))
-          (recur true))))))
+      (async/go-loop []
+        (when-let [msg (<! out)]
+          (send-message a-state uuid msg)
+          (recur))))))
+
+(defn create-state-agent
+  "Creates the agent responsible for managing the state of the round.
+  This contains the messages to players, :messages, and the last state of the 
+  game, :last.  
+  Returns the created agent."
+  [player-uuids]
+  (let [message-list (into (hash-map) (map #(vector % []) player-uuids))
+        state {:messages message-list :last {}}]
+    (agent state
+           :meta {::round-state true}
+           :validator (create-validation ::state-data))))
 
 (defn create-round
   [gathering game]
   {:pre [(= (:game gathering) (:name game))]}
   (let [player-uuids (:players gathering)
-        message-list (into (hash-map) (map #(vector % []) player-uuids))
-        state {:messages message-list :last {}}
-        a-state (agent state
-                       :meta {::round-state true}
-                       :validator (create-validation ::state-data))
+        a-state (create-state-agent player-uuids) 
         engine (game/create-engine (:factory game))]
     (bind-engine a-state player-uuids engine)
     {:ruid (uuids/random-uuid)

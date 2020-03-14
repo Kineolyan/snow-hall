@@ -111,8 +111,6 @@
   (ios [e] ios)
   (stop [e] (async/offer! stop true)))
 
-(def end-message "-THE END-")
-
 (defn game->str
   [game]
   (->> game
@@ -130,26 +128,32 @@
         (do
           (doseq [out [out1 out2]]
             (>! out (game->str game)))
-          (let [[m c] (alts! [stop in1 in2])]
-            (cond
+          (cond
+            (win? game 0) (do (>! out1 "WIN")
+                              (>! out2 "LOSS")
+                              (recur turn game true))
+            (win? game 1) (do (>! out1 "LOSS")
+                              (>! out2 "WIN")
+                              (recur turn game true))
+            :else (let [[m c] (alts! [stop in1 in2])]
+                    (cond
             ; Halt message, we must stop
-              (= c stop) (recur turn game true)
+                      (= c stop) (recur turn game true)
             ; legal moves from one of the players
-              (and (= turn :p1) (= c in1)) (recur :p2
-                                                  (update-game game 0 m)
-                                                  false)
-              (and (= turn :p2) (= c in2)) (recur :p1
-                                                  (update-game game 1 m)
-                                                  false)
+                      (and (= turn :p1) (= c in1)) (recur :p2
+                                                          (update-game game 0 m)
+                                                          false)
+                      (and (= turn :p2) (= c in2)) (recur :p1
+                                                          (update-game game 1 m)
+                                                          false)
             ; handling illegal moves
-              (and (= turn :p1) (= c in2)) (do (>! out2 "LOSS: NOT YOUR TURN")
-                                               (>! out1 "WIN: ILLEGAL MOVE")
-                                               (recur turn game true))
-              (and (= turn :p2) (= c in1)) (do (>! out1 "LOSS: NOT YOUR TURN")
-                                               (>! out2 "WIN: ILLEGAL MOVE")
-                                               (recur turn game true)))))
+                      (and (= turn :p1) (= c in2)) (do (>! out2 "LOSS: NOT YOUR TURN")
+                                                       (>! out1 "WIN: ILLEGAL MOVE")
+                                                       (recur turn game true))
+                      (and (= turn :p2) (= c in1)) (do (>! out1 "LOSS: NOT YOUR TURN")
+                                                       (>! out2 "WIN: ILLEGAL MOVE")
+                                                       (recur turn game true))))))
         (doseq [io [io1 io2]]
-          (>! (:out io) end-message)
           (close! (:out io))
           (close! (:in io)))))))
 
@@ -179,7 +183,7 @@
   (def out1 ((comp :out first :ios) round))
   (def in2 ((comp :in second :ios) round))
   (def out2 ((comp :out second :ios) round))
-  (clojure.core.async/go (while true 
+  (clojure.core.async/go (while true
                            (do (println (str "p1 -> " (clojure.core.async/<! out1)))
                                (println (str "p2 -> " (clojure.core.async/<! out2))))))
   (clojure.core.async/offer! in1 [0 0])
