@@ -62,3 +62,35 @@
       ; wait for the end of the cleaning
       (await-for 1000 state)
       (is (empty? (m/read-messages round uuid))))))
+
+(deftest send-message []
+  (testing "sending on initial list"
+    (let [uuid "abc"
+          state (m/create-state-agent [uuid])
+          round {:state state}]
+      ; init with some content 
+      (m/send-message state uuid "msg-1")
+      (m/send-message state uuid "msg-2")
+      (await-for 1000 state)
+      ; access the messages
+      (is (= (map :content (get-in @state [:messages uuid]))
+             ["msg-1" "msg-2"]))))
+  (testing "sending after reading messages"
+    (let [uuid "abc"
+          state (m/create-state-agent [uuid])
+          round {:state state}]
+      ; init with some content 
+      (m/send-message state uuid "msg-1")
+      (m/send-message state uuid "msg-2")
+      (await-for 1000 state)
+      ; access the messages
+      (m/read-messages round uuid)
+      (await-for 1000 state)
+      ; send more messages
+      (m/send-message state uuid "msg-3")
+      (m/send-message state uuid "msg-4")
+      (await-for 1000 state)
+      (is (= (map :content (get-in @state [:messages uuid]))
+             ["msg-3" "msg-4"])))))
+
+(clojure.test/run-tests *ns*)
