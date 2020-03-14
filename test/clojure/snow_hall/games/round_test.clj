@@ -8,8 +8,8 @@
           make-message #(hash-map :timestamp % :content %)
           initial-state @(m/create-state-agent [uuid])
           filled-state (update-in initial-state
-                       [:messages uuid]
-                       (constantly (map make-message [1 5 10 11 20])))
+                                  [:messages uuid]
+                                  (constantly (map make-message [1 5 10 11 20])))
           next-state (m/clear-old-messages filled-state uuid 10)]
       (is (= (:messages next-state) {uuid (map make-message [11 20])}))))
   (testing "with empty list of messages"
@@ -61,7 +61,22 @@
       (m/read-messages round uuid)
       ; wait for the end of the cleaning
       (await-for 1000 state)
-      (is (empty? (m/read-messages round uuid))))))
+      (is (empty? (m/read-messages round uuid)))))
+  (testing "only affects provided uuid"
+    (let [uuid "abc"
+          other-uuid "cde"
+          state (m/create-state-agent [uuid other-uuid])
+          round {:state state}]
+      ; init with some content 
+      (m/send-message state uuid "msg-1")
+      (m/send-message state other-uuid "msg-2")
+      (await-for 1000 state)
+      ; access the messages
+      (let [snapshot (:messages @state)]
+        (m/read-messages round uuid)
+        (await-for 1000 state)
+        (is (= (:messages @state)
+               (update-in snapshot [uuid] (constantly []))))))))
 
 (deftest send-message []
   (testing "sending on initial list"
@@ -92,5 +107,3 @@
       (await-for 1000 state)
       (is (= (map :content (get-in @state [:messages uuid]))
              ["msg-3" "msg-4"])))))
-
-(clojure.test/run-tests *ns*)
