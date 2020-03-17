@@ -8,6 +8,7 @@
    [snow-hall.games.manager :as game-mgr]
    [snow-hall.games.round]
    [snow-hall.games.library.sample]
+   [snow-hall.games.library.tic-tac-toe]
    [snow-hall.hall.butler]
    [snow-hall.hall.visitor]
    [snow-hall.rest.games]
@@ -33,6 +34,7 @@
         :java "code4life.Referee"
         :player-count 2})
       (game-mgr/add-game snow-hall.games.library.sample/game-definition)
+      (game-mgr/add-game snow-hall.games.library.tic-tac-toe/game-definition)
       (ref :validator snow-hall.games.manager/validate-fn)))
 
 (defn create-visitor-registry

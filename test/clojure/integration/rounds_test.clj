@@ -1,23 +1,17 @@
-(ns integration.rounds
+(ns integration.rounds-test
   (:require [integration.story :as s :refer [story step]]
+            [integration.common :refer [authenticate
+                                        auth-header
+                                        create-visitors
+                                        create-gathering
+                                        start-round]]
             [clojure.test :refer (is)]))
-
-(defn authenticate
-  [user]
-  {"uuid" (user "uuid")
-   "token" (user "token")})
-
-(defn auth-header
-  [user]
-  (str (user "uuid")
-       ":"
-       (user "token")))
 
 (story
  play-fake-game
  (let [context (atom {})]
    (step "create the users"
-         (let [[u1 u2 & _r] (repeatedly 5 #(s/post "/visitors"))]
+         (let [[u1 u2 & _r] (create-visitors 5)]
            (swap! context assoc
                   :creator u1
                   :guest u2)))
@@ -28,29 +22,14 @@
            (swap! context assoc
                   :one-game one-game)))
    (step "create the gathering"
-         (let [{:keys [creator one-game]} @context
-               gathering (s/post
-                          "/gatherings"
-                          {"user" (authenticate creator)
-                           "game-id" (one-game "name")})]
-           (is gathering)
+         (let [{:keys [creator one-game guest]} @context
+               gathering (create-gathering {:creator creator
+                                            :game-name (one-game "name")
+                                            :others [guest]})]
            (swap! context assoc :gathering gathering)))
-   (step "register second user"
-         (let [{:keys [gathering guest]} @context]
-           (s/post
-            (str "/gatherings/" (gathering "id"))
-            {"user" (authenticate guest)
-             "token" (-> gathering
-                         (get "players")
-                         (second)
-                         (get "token"))})))
    (step "start the game"
          (let [{:keys [gathering creator guest]} @context
-               round (s/post
-                      (str "/rounds/")
-                      {"user" (authenticate creator)
-                       "gathering" (gathering "id")})]
-           (is round)
+               round (start-round gathering creator)]
            (is (= (round "game") "Sample"))
            (is (= (round "players") (map #(get % "uuid") [creator guest])))
            (swap! context assoc :round (round "id"))))
