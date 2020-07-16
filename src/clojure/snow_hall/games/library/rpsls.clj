@@ -53,14 +53,6 @@
     (close! in)
     (close! out)))
 
-(defn all-but-one
-  "Gets all values but the one at the given position."
-  [values i]
-  (->> values
-       (map vector (range))
-       (filter #(not= i (first %)))
-       (map second)))
-
 (defn send-message
   [ios message]
   (doseq [io ios]
@@ -111,8 +103,9 @@
 
 (defn update-score-in-state
   [state]
-  (let [winner (get-winner (:signs state))]
-    (update-in state [:scores winner] inc)))
+  (if-let [winner (get-winner (:signs state))]
+    (update-in state [:scores winner] inc)
+    state))
 
 (defn reset-game-in-state
   [{:keys [signs] :as state}]
@@ -120,51 +113,81 @@
          :signs {}
          :last-signs signs))
 
-(defn all-signs?
-  [{:keys [signs]}]
-  (every? signs [:p1 :p2]))
-
-(defn update-state
-  [state player-idx input]
-  (let [sign (str->sign input) 
-        state-with-signs (set-sign-in-state state player-idx sign)]
-    (if (all-signs? state-with-signs)
-      (-> state-with-signs update-score-in-state reset-game-in-state)
-      state-with-signs)))
-
-(defn score-changed?
-  [prev-state next-state]
-  (not= (:scores prev-state) (:scores next-state)))
-
-(defn publish-state?
-  [prev-state next-state]
-  (score-changed? prev-state next-state))
-
 (defn find-winner
   [{:keys [scores]}]
   (cond
     (win? scores 0) :p1
     (win? scores 1) :p2))
 
-(defn handle-loop
-  [{[{in1 :in} {in2 :in}] :ios stop :stop :as round} {:keys [scores signs] :as state}]
-  (cond
-    (win? scores 0) (end-with-victory round 0)
-    (win? scores 1) (end-with-victory round 1)
-    :else (let [[m c] (alts! [stop in1 in2])
-                p1-played? (:p1 signs)
-                p2-played? (:p2 signs)]
-            (cond
-            ; Halt message, we must stop
-              (= c stop) (end-prematurely round)
-              ; check the played sign (not the most readable code)
-              (str->sign m) (end-with-mistake round #(= (= c in1) (= % 0)) "ILLEGAL SIGN")
-            ; legal moves from one of the players
-              (and (= c in1) (not p1-played?)) (update-state state 0 m)
-              (and (= c in2) (not p2-played?)) (update-state state 1 m)
-            ; handling illegal moves
-              (and (= c in2) p2-played?) (end-with-mistake round (partial = 0) "NOT YOUR TURN")
-              (and (= c in1) p1-played?) (end-with-mistake round (partial = 1) "NOT YOUR TURN")))))
+(defn check-for-victory
+  [state]
+  (if-let [winner (find-winner state)]
+    (assoc state
+           :winner winner
+           :reason :victory)
+    state))
+
+(defn all-signs?
+  [{:keys [signs]}]
+  (every? signs [:p1 :p2]))
+
+(defn update-state
+  [state player-id sign]
+  (let [state-with-signs (set-sign-in-state state player-id sign)]
+    (if (all-signs? state-with-signs)
+      (-> state-with-signs 
+          update-score-in-state 
+          reset-game-in-state
+          check-for-victory)
+      state-with-signs)))
+
+(defn publish-state?
+  [next-state]
+  (empty? (:signs next-state)))
+
+(defn publish-completion
+  [round state]
+  nil) ; publish differently according to the status
+
+(defn get-move
+  "Gets the move to play, either as `[player, move]` or :stop to end the game"
+  [{[{in1 :in} {in2 :in}] :ios stop :stop}]
+  (let [[m c] (alts! [stop in1 in2])]
+            (if
+              (= c stop) :stop
+              [
+               (cond 
+                 (= c in1) :p1
+                 (= c in2) :p2)
+               (str->sign m)])))
+
+(defn play-move
+  [state player move]
+  (update-state state player move))
+
+(defn mark-illegal-turn
+  [state player]
+  (assoc state
+         :status :ended
+         :winner (if (= player :p1) :p2 :p1)
+         :reason :illegal-turn))
+
+(defn mark-illegal-move
+  [state player]
+  (assoc state
+         :status :ended
+         :winner (if (= player :p1) :p2 :p1)
+         :reason :illegal-move))
+
+(defn apply-move
+  [{:keys [signs] :as state} [player move]]
+  (let [p1-played? (:p1 signs)
+        p2-played? (:p2 signs)]
+    (cond
+      (and (= player :p1) p1-played?) (mark-illegal-turn state player)
+      (and (= player :p2) p2-played?) (mark-illegal-turn state player)
+      (nil? move) (mark-illegal-move state player)
+      :else (play-move state player move))))
 
 (defn create-state
   []
@@ -172,16 +195,31 @@
    :last-signs nil
    :signs {}
    :status :created
-   :winner nil})
+   :winner nil
+   :reason nil})
+
+(defn mark-round-as-started
+  [round]
+  (swap! (:state round) assoc :status :playing))
+
+(defn round-completed?
+  [round]
+  (= :ended 
+     ((comp :status deref :state) round)))
 
 (defn- start
   [round]
-  (go-loop [state  @(:state round)]
-    (when-let [next-state (handle-loop round state)]
-      (when (publish-state? state next-state)
-        (publish-state round next-state))
-      (reset! (:state round) next-state)
-      (recur next-state))))
+  (mark-round-as-started round)
+  (go-loop []
+    (let [move (get-move round)]
+      (if (= move :stop)
+        (end-prematurely round)
+        (let [next-state (swap! (:state round) apply-move move)]
+          (when (publish-state? next-state)
+            (publish-state round next-state))
+          (if (round-completed? round)
+            (publish-completion round next-state)
+            (recur)))))))
 
 (defn- create
   []
