@@ -1,4 +1,4 @@
-(ns snow-hall.games.library.rpcls
+(ns snow-hall.games.library.rpsls
   (:require [clojure.core.async :as async :refer [chan go-loop alts! >! close!]]
             [snow-hall.games.game :refer [GameFactory RoundEngine]]))
 
@@ -26,7 +26,7 @@
   []
   {:in (chan 1) :out (chan 1)})
 
-(defrecord RpclsRound [ios stop]
+(defrecord RpclsRound [ios stop state]
   RoundEngine
   (ios [e] ios)
   (stop [e] (async/offer! stop true)))
@@ -80,9 +80,9 @@
   (end-game round))
 
 (defn end-with-mistake
-  [round f]
-  (notify-victory round f {:win "WIN: ILLEGAL MOVE"
-                           :loss "LOSS: NOT YOUR TURN"})
+  [round f rationale]
+  (notify-victory round f {:win "WIN: OPPONENT MISTAKE"
+                           :loss (str "LOSS: " rationale)})
   (end-game round))
 
 (defn end-prematurely
@@ -124,15 +124,13 @@
   [{:keys [signs]}]
   (every? signs [:p1 :p2]))
 
-
 (defn update-state
   [state player-idx input]
-  (if-let [sign (str->sign input)]
-    (let [state-with-signs (set-sign-in-state state player-idx sign)]
-      (if (all-signs? state-with-signs)
-        (-> state-with-signs update-score-in-state reset-game-in-state)
-        state-with-signs))
-    (end-with-mistake)))
+  (let [sign (str->sign input) 
+        state-with-signs (set-sign-in-state state player-idx sign)]
+    (if (all-signs? state-with-signs)
+      (-> state-with-signs update-score-in-state reset-game-in-state)
+      state-with-signs)))
 
 (defn score-changed?
   [prev-state next-state]
@@ -141,6 +139,12 @@
 (defn publish-state?
   [prev-state next-state]
   (score-changed? prev-state next-state))
+
+(defn find-winner
+  [{:keys [scores]}]
+  (cond
+    (win? scores 0) :p1
+    (win? scores 1) :p2))
 
 (defn handle-loop
   [{[{in1 :in} {in2 :in}] :ios stop :stop :as round} {:keys [scores signs] :as state}]
@@ -153,28 +157,38 @@
             (cond
             ; Halt message, we must stop
               (= c stop) (end-prematurely round)
+              ; check the played sign (not the most readable code)
+              (str->sign m) (end-with-mistake round #(= (= c in1) (= % 0)) "ILLEGAL SIGN")
             ; legal moves from one of the players
               (and (= c in1) (not p1-played?)) (update-state state 0 m)
               (and (= c in2) (not p2-played?)) (update-state state 1 m)
             ; handling illegal moves
-              (and (= c in2) p2-played?) (end-with-mistake round 0)
-              (and (= c in1) p1-played?) (end-with-mistake round 1)))))
+              (and (= c in2) p2-played?) (end-with-mistake round (partial = 0) "NOT YOUR TURN")
+              (and (= c in1) p1-played?) (end-with-mistake round (partial = 1) "NOT YOUR TURN")))))
+
+(defn create-state
+  []
+  {:scores (create-scoreboard)
+   :last-signs nil
+   :signs {}
+   :status :created
+   :winner nil})
 
 (defn- start
   [round]
-  (go-loop [state {:scores (create-scoreboard)
-                   :last-signs nil
-                   :signs {}}]
+  (go-loop [state  @(:state round)]
     (when-let [next-state (handle-loop round state)]
       (when (publish-state? state next-state)
         (publish-state round next-state))
+      (reset! (:state round) next-state)
       (recur next-state))))
 
 (defn- create
   []
   (RpclsRound.
    (repeatedly 2 create-io)
-   (chan 1)))
+   (chan 1)
+   (atom (create-state))))
 
 (def game-factory
   (reify
@@ -185,13 +199,15 @@
         round))))
 
 (def game-definition
-  {:name "Tic Tac Toe"
+  {:name "Rock Paper Scissors Lizard Spock"
    :player-count 2
    :factory game-factory})
 
 (comment
   (def round (snow-hall.games.game/create-engine game-factory))
   round
+  (snow-hall.games.game/stop round)
+  
   (def in1 ((comp :in first :ios) round))
   (def out1 ((comp :out first :ios) round))
   (def in2 ((comp :in second :ios) round))
@@ -199,8 +215,8 @@
   (clojure.core.async/go (while true
                            (do (println (str "p1 -> " (clojure.core.async/<! out1)))
                                (println (str "p2 -> " (clojure.core.async/<! out2))))))
-  (clojure.core.async/offer! in1 [0 0])
-  (clojure.core.async/offer! in2 [0 1])
+  (clojure.core.async/offer! in1 "rock")
+  (clojure.core.async/offer! in2 "paper")
   (clojure.core.async/offer! in1 [1 0])
   (clojure.core.async/offer! in2 [1 2])
   (clojure.core.async/offer! in1 [2 2])
