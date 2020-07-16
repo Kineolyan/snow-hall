@@ -2,6 +2,24 @@
   (:require [clojure.core.async :as async :refer [chan go-loop alts! >! close!]]
             [snow-hall.games.game :refer [GameFactory RoundEngine]]))
 
+(def win-matrix
+  {:rock #{:scissors :lizard}
+   :paper #{:rock :spock}
+   :scissors #{:paper :lizard}
+   :lizard #{:paper :spock}
+   :spock #{:rock :scissors}})
+
+(def allowed-signs (apply hash-set (keys win-matrix)))
+
+(defn valid-sign?
+  [sign]
+  (allowed-signs sign))
+
+(defn str->sign
+  [input]
+  (let [sign (keyword input)]
+    (when (valid-sign? sign) sign)))
+
 ; -- Creating the rounds and piping
 
 (defn create-io
@@ -17,9 +35,9 @@
   []
   {:p1 0 :p2 0})
 
-(defn scores->str
-  [scoreboard]
-  (str (:p1 scoreboard) "|" (:p2 scoreboard)))
+(defn state->str
+  [{:keys [scores last-signs]}]
+  (str (:p1 scores) "|" (:p2 scores) " - " (:p1 last-signs) "|" (:p2 last-signs)))
 
 (def win-score 5)
 (defn win?
@@ -43,67 +61,114 @@
        (filter #(not= i (first %)))
        (map second)))
 
+(defn send-message
+  [ios message]
+  (doseq [io ios]
+    (>! (:out io) message)))
+
 (defn notify-victory
-  [round winner-idx messages]
-  (let [winner-io (get round winner-idx)
-        losers (all-but-one (:ios round) winner-idx)]
-    (>! (:out winner-io) (:win messages))
-    (doseq [loser-io losers]
-      (>! (:out loser-io) (:loss messages)))))
+  "Notifies all players matched by f of the victory, and others of defeat"
+  [round f messages]
+  (let [winners (filter f (:ios round))
+        losers (filter (complement f) (:ios round))]
+    (send-message winners (:win messages))
+    (send-message losers (:loss messages))))
 
 (defn end-with-victory
-  [round winner-idx]
-  (notify-victory round winner-idx {:win "WIN" :loss "LOSS"})
+  [round f]
+  (notify-victory round f {:win "WIN" :loss "LOSS"})
   (end-game round))
 
 (defn end-with-mistake
-  [round winner-idx]
-  (notify-victory round winner-idx {:win "WIN: ILLEGAL MOVE"
-                                    :loss "LOSS: NOT YOUR TURN"})
+  [round f]
+  (notify-victory round f {:win "WIN: ILLEGAL MOVE"
+                           :loss "LOSS: NOT YOUR TURN"})
   (end-game round))
 
 (defn end-prematurely
   [round]
-  (doseq [io (:ios round)]
-    (>! (:out io) "ABORTED"))
+  (send-message (:ios round) "ABORTED")
   (end-game round))
 
 (defn publish-state
-  [round scoreboard]
+  [round state]
   (doseq [io (:ios round)]
-    (>! (:out io) (scores->str scoreboard))))
+    (>! (:out io) (state->str state))))
+
+(defn set-sign-in-state
+  [state player-idx sign]
+  (update-in state [:signs player-idx] (constantly sign)))
+
+(defn winning-sign-over?
+  [s1 s2]
+  (-> win-matrix s1 s2))
+
+(defn get-winner
+  [{:keys [p1 p2]}]
+  (cond
+    (winning-sign-over? p1 p2) :p1
+    (winning-sign-over? p2 p1) :p2))
+
+(defn update-score-in-state
+  [state]
+  (let [winner (get-winner (:signs state))]
+    (update-in state [:scores winner] inc)))
+
+(defn reset-game-in-state
+  [{:keys [signs] :as state}]
+  (assoc state
+         :signs {}
+         :last-signs signs))
+
+(defn all-signs?
+  [{:keys [signs]}]
+  (every? signs [:p1 :p2]))
+
+
+(defn update-state
+  [state player-idx input]
+  (if-let [sign (str->sign input)]
+    (let [state-with-signs (set-sign-in-state state player-idx sign)]
+      (if (all-signs? state-with-signs)
+        (-> state-with-signs update-score-in-state reset-game-in-state)
+        state-with-signs))
+    (end-with-mistake)))
+
+(defn score-changed?
+  [prev-state next-state]
+  (not= (:scores prev-state) (:scores next-state)))
+
+(defn publish-state?
+  [prev-state next-state]
+  (score-changed? prev-state next-state))
 
 (defn handle-loop
-  [scoreboard signs]
-  nil)
+  [{[{in1 :in} {in2 :in}] :ios stop :stop :as round} {:keys [scores signs] :as state}]
+  (cond
+    (win? scores 0) (end-with-victory round 0)
+    (win? scores 1) (end-with-victory round 1)
+    :else (let [[m c] (alts! [stop in1 in2])
+                p1-played? (:p1 signs)
+                p2-played? (:p2 signs)]
+            (cond
+            ; Halt message, we must stop
+              (= c stop) (end-prematurely round)
+            ; legal moves from one of the players
+              (and (= c in1) (not p1-played?)) (update-state state 0 m)
+              (and (= c in2) (not p2-played?)) (update-state state 1 m)
+            ; handling illegal moves
+              (and (= c in2) p2-played?) (end-with-mistake round 0)
+              (and (= c in1) p1-played?) (end-with-mistake round 1)))))
 
 (defn- start
-  [{:keys [ios stop] :as round}]
-  (let [[{in1 :in} {in2 :in}] ios]
-    (go-loop [scoreboard (create-scoreboard)
-              signs {}]
-      (publish-state round scoreboard)
-      (cond
-        (win? scoreboard 0) (end-with-victory round 0)
-        (win? scoreboard 1) (end-with-victory round 1)
-        :else (let [[m c] (alts! [stop in1 in2])
-                    p1-played? (:p1 signs)
-                    p2-played? (:p2 signs)]
-                (if
-            ; Halt message, we must stop
-                  (= c stop) (end-prematurely round)
-                  (apply recur )
-            ; legal moves from one of the players
-                  (and (= c in1) (not p1-played?)) (recur (update-game scoreboard 0 m)
-                                                          signs
-                                                          )
-                  (and (= c in2) (not p2-played?)) (recur (update-game scoreboard 1 m)
-                                                          signs
-                                                          )
-            ; handling illegal moves
-                  (and (= c in2) p2-played?) (end-with-mistake round 0)
-                  (and (= c in1) p1-played?) (end-with-mistake round 1))))
-      )))
+  [round]
+  (go-loop [state {:scores (create-scoreboard)
+                   :last-signs nil
+                   :signs {}}]
+    (when-let [next-state (handle-loop round state)]
+      (when (publish-state? state next-state)
+        (publish-state round next-state))
+      (recur next-state))))
 
 (defn- create
   []
