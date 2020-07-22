@@ -96,7 +96,8 @@
     (assoc state
            :winner winner
            :messages {:win "WIN BY POINTS"
-                      :loss "LOSS BY POINTS"})
+                      :loss "LOSS BY POINTS"}
+           :status :ended)
     state))
 
 (defn all-signs?
@@ -121,7 +122,6 @@
   [round]
   (= :ended
      ((comp :status deref :state) round)))
-
 
 (defn mark-illegal-turn
   [state player]
@@ -179,19 +179,9 @@
     (send-message! winners (:win messages))
     (send-message! losers (:loss messages))))
 
-(defn end-with-victory!
-  [round f]
-  (notify-victory! round f {:win "WIN" :loss "LOSS"})
-  (end-game! round))
-
-(defn end-with-mistake!
-  [round f rationale]
-  (notify-victory! round f {:win "WIN: OPPONENT MISTAKE"
-                           :loss (str "LOSS: " rationale)})
-  (end-game! round))
-
 (defn end-prematurely!
   [round]
+  (swap! (:state round) assoc :status :ended)
   (send-message! (:ios round) "ABORTED")
   (end-game! round))
 
@@ -200,9 +190,16 @@
   (doseq [io (:ios round)]
     (>! (:out io) (state->str state))))
 
+(defn get-winner-io
+  [ios winner]
+  (case winner
+    :p1 (nth ios 0)
+    :p2 (nth ios 1)))
+
 (defn publish-completion!
-  [round state]
-  nil) ; publish differently according to the status
+  [round {:keys [winner messages]}]
+  (notify-victory! round (partial = (get-winner-io (:ios round) winner)) messages)
+  (end-game! round))
 
 (defn get-move!
   "Gets the move to play, either as `[player, move]` or :stop to end the game"
