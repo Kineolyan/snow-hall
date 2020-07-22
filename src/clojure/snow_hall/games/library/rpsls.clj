@@ -31,13 +31,24 @@
   (ios [e] ios)
   (stop [e] (async/offer! stop true)))
 
+; -- State and management
+
 (defn create-scoreboard
   []
   {:p1 0 :p2 0})
 
+(defn create-state
+  []
+  {:scores (create-scoreboard)
+   :last-signs nil
+   :signs {}
+   :status :created
+   :winner nil
+   :messages nil})
+
 (defn state->str
   [{:keys [scores last-signs]}]
-  (str (:p1 scores) "|" (:p2 scores) " - " (:p1 last-signs) "|" (:p2 last-signs)))
+  (str (:p1 scores) "|" (:p2 scores) ";" (:p1 last-signs) "|" (:p2 last-signs)))
 
 (def win-score 5)
 (defn win?
@@ -46,46 +57,6 @@
                  0 (:p1 scoreboard)
                  1 (:p2 scoreboard))]
     (= score win-score)))
-
-(defn end-game
-  [round]
-  (doseq [{:keys [in out]} (:ios round)]
-    (close! in)
-    (close! out)))
-
-(defn send-message
-  [ios message]
-  (doseq [io ios]
-    (>! (:out io) message)))
-
-(defn notify-victory
-  "Notifies all players matched by f of the victory, and others of defeat"
-  [round f messages]
-  (let [winners (filter f (:ios round))
-        losers (filter (complement f) (:ios round))]
-    (send-message winners (:win messages))
-    (send-message losers (:loss messages))))
-
-(defn end-with-victory
-  [round f]
-  (notify-victory round f {:win "WIN" :loss "LOSS"})
-  (end-game round))
-
-(defn end-with-mistake
-  [round f rationale]
-  (notify-victory round f {:win "WIN: OPPONENT MISTAKE"
-                           :loss (str "LOSS: " rationale)})
-  (end-game round))
-
-(defn end-prematurely
-  [round]
-  (send-message (:ios round) "ABORTED")
-  (end-game round))
-
-(defn publish-state
-  [round state]
-  (doseq [io (:ios round)]
-    (>! (:out io) (state->str state))))
 
 (defn set-sign-in-state
   [state player-idx sign]
@@ -124,101 +95,138 @@
   (if-let [winner (find-winner state)]
     (assoc state
            :winner winner
-           :reason :victory)
+           :messages {:win "WIN BY POINTS"
+                      :loss "LOSS BY POINTS"})
     state))
 
 (defn all-signs?
   [{:keys [signs]}]
   (every? signs [:p1 :p2]))
 
-(defn update-state
+(defn play-move
   [state player-id sign]
   (let [state-with-signs (set-sign-in-state state player-id sign)]
     (if (all-signs? state-with-signs)
-      (-> state-with-signs 
-          update-score-in-state 
+      (-> state-with-signs
+          update-score-in-state
           reset-game-in-state
           check-for-victory)
       state-with-signs)))
 
-(defn publish-state?
-  [next-state]
-  (empty? (:signs next-state)))
+(defn mark-round-as-started!
+  [round]
+  (swap! (:state round) assoc :status :playing))
 
-(defn publish-completion
-  [round state]
-  nil) ; publish differently according to the status
+(defn round-completed?
+  [round]
+  (= :ended
+     ((comp :status deref :state) round)))
 
-(defn get-move
-  "Gets the move to play, either as `[player, move]` or :stop to end the game"
-  [{[{in1 :in} {in2 :in}] :ios stop :stop}]
-  (let [[m c] (alts! [stop in1 in2])]
-            (if
-              (= c stop) :stop
-              [
-               (cond 
-                 (= c in1) :p1
-                 (= c in2) :p2)
-               (str->sign m)])))
-
-(defn play-move
-  [state player move]
-  (update-state state player move))
 
 (defn mark-illegal-turn
   [state player]
   (assoc state
          :status :ended
          :winner (if (= player :p1) :p2 :p1)
-         :reason :illegal-turn))
+         :messages {:win "WIN: OPPONENT ILLEGAL TURN"
+                    :loss "LOSS: NOT YOUR TURN"}))
 
 (defn mark-illegal-move
   [state player]
   (assoc state
          :status :ended
          :winner (if (= player :p1) :p2 :p1)
-         :reason :illegal-move))
+         :messages {:win "WIN: OPPONENT ILLEGAL MOVE"
+                    :loss "LOSS: ILLEGAL MOVE"}))
 
 (defn apply-move
-  [{:keys [signs] :as state} [player move]]
+  [{:keys [signs winner] :as state} [player move]]
   (let [p1-played? (:p1 signs)
         p2-played? (:p2 signs)]
     (cond
+      (some? winner) state ; do not change the state once the game ended
       (and (= player :p1) p1-played?) (mark-illegal-turn state player)
       (and (= player :p2) p2-played?) (mark-illegal-turn state player)
       (nil? move) (mark-illegal-move state player)
       :else (play-move state player move))))
 
-(defn create-state
-  []
-  {:scores (create-scoreboard)
-   :last-signs nil
-   :signs {}
-   :status :created
-   :winner nil
-   :reason nil})
+(defn compute-next-state!
+  [round move]
+  (swap! (:state round) apply-move move))
 
-(defn mark-round-as-started
-  [round]
-  (swap! (:state round) assoc :status :playing))
+(defn publish-state?
+  [next-state]
+  (empty? (:signs next-state)))
 
-(defn round-completed?
+; -- side-effect interaction
+
+(defn end-game!
   [round]
-  (= :ended 
-     ((comp :status deref :state) round)))
+  (doseq [{:keys [in out]} (:ios round)]
+    (close! in)
+    (close! out)))
+
+(defn send-message!
+  [ios message]
+  (doseq [io ios]
+    (>! (:out io) message)))
+
+(defn notify-victory!
+  "Notifies all players matched by f of the victory, and others of defeat"
+  [round f messages]
+  (let [winners (filter f (:ios round))
+        losers (filter (complement f) (:ios round))]
+    (send-message! winners (:win messages))
+    (send-message! losers (:loss messages))))
+
+(defn end-with-victory!
+  [round f]
+  (notify-victory! round f {:win "WIN" :loss "LOSS"})
+  (end-game! round))
+
+(defn end-with-mistake!
+  [round f rationale]
+  (notify-victory! round f {:win "WIN: OPPONENT MISTAKE"
+                           :loss (str "LOSS: " rationale)})
+  (end-game! round))
+
+(defn end-prematurely!
+  [round]
+  (send-message! (:ios round) "ABORTED")
+  (end-game! round))
+
+(defn publish-state!
+  [round state]
+  (doseq [io (:ios round)]
+    (>! (:out io) (state->str state))))
+
+(defn publish-completion!
+  [round state]
+  nil) ; publish differently according to the status
+
+(defn get-move!
+  "Gets the move to play, either as `[player, move]` or :stop to end the game"
+  [{[{in1 :in} {in2 :in}] :ios stop :stop}]
+  (let [[m c] (alts! [stop in1 in2])]
+    (if
+     (= c stop) :stop
+     [(cond
+        (= c in1) :p1
+        (= c in2) :p2)
+      (str->sign m)])))
 
 (defn- start
   [round]
-  (mark-round-as-started round)
+  (mark-round-as-started! round)
   (go-loop []
-    (let [move (get-move round)]
+    (let [move (get-move! round)]
       (if (= move :stop)
-        (end-prematurely round)
-        (let [next-state (swap! (:state round) apply-move move)]
+        (end-prematurely! round)
+        (let [next-state (compute-next-state! round move)]
           (when (publish-state? next-state)
-            (publish-state round next-state))
+            (publish-state! round next-state))
           (if (round-completed? round)
-            (publish-completion round next-state)
+            (publish-completion! round next-state)
             (recur)))))))
 
 (defn- create
@@ -245,19 +253,19 @@
   (def round (snow-hall.games.game/create-engine game-factory))
   round
   (snow-hall.games.game/stop round)
+
+  (def s0 (create-state))
+  (def s1 (apply-move s0 [:p1 :rock]))
+  (def s2 (apply-move s1 [:p2 :paper]))
+  (def s3 (update-in s2 [:scores :p1] (constantly (dec win-score))))
+  (def s4 (apply-move s3 [:p1 :paper]))
+  (def s5 (apply-move s4 [:p2 :spock]))
   
-  (def in1 ((comp :in first :ios) round))
-  (def out1 ((comp :out first :ios) round))
-  (def in2 ((comp :in second :ios) round))
-  (def out2 ((comp :out second :ios) round))
-  (clojure.core.async/go (while true
-                           (do (println (str "p1 -> " (clojure.core.async/<! out1)))
-                               (println (str "p2 -> " (clojure.core.async/<! out2))))))
-  (clojure.core.async/offer! in1 "rock")
-  (clojure.core.async/offer! in2 "paper")
-  (clojure.core.async/offer! in1 [1 0])
-  (clojure.core.async/offer! in2 [1 2])
-  (clojure.core.async/offer! in1 [2 2])
-  (clojure.core.async/offer! in1 [0 2])
-  (clojure.core.async/poll! out2))
+  (apply-move s1 [:p1 :paper])
+  (apply-move s1 [:p2 nil])
+  (publish-state? s1)
+  (publish-state? s2)
+  (apply-move s5 [:p1 :rock])
+  (state->str s1)
+  )
 
