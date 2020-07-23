@@ -1,5 +1,5 @@
 (ns snow-hall.games.library.rpsls
-  (:require [clojure.core.async :as async :refer [chan go-loop alts! >! close!]]
+  (:require [clojure.core.async :as async :refer [chan go alts!! >!! close!]]
             [snow-hall.games.game :refer [GameFactory RoundEngine]]))
 
 (def win-matrix
@@ -48,7 +48,7 @@
 
 (defn state->str
   [{:keys [scores last-signs]}]
-  (str (:p1 scores) "|" (:p2 scores) ";" (:p1 last-signs) "|" (:p2 last-signs)))
+  (str (:p1 scores) "|" (:p2 scores) ";" (some-> last-signs :p1 name) "|" (some-> last-signs :p2 name)))
 
 (def win-score 5)
 (defn win?
@@ -169,7 +169,7 @@
 (defn send-message!
   [ios message]
   (doseq [io ios]
-    (>! (:out io) message)))
+    (>!! (:out io) message)))
 
 (defn notify-victory!
   "Notifies all players matched by f of the victory, and others of defeat"
@@ -188,7 +188,7 @@
 (defn publish-state!
   [round state]
   (doseq [io (:ios round)]
-    (>! (:out io) (state->str state))))
+    (>!! (:out io) (state->str state))))
 
 (defn get-winner-io
   [ios winner]
@@ -204,7 +204,7 @@
 (defn get-move!
   "Gets the move to play, either as `[player, move]` or :stop to end the game"
   [{[{in1 :in} {in2 :in}] :ios stop :stop}]
-  (let [[m c] (alts! [stop in1 in2])]
+  (let [[m c] (alts!! [stop in1 in2])]
     (if
      (= c stop) :stop
      [(cond
@@ -212,10 +212,10 @@
         (= c in2) :p2)
       (str->sign m)])))
 
-(defn- start
+(defn run-loop!
   [round]
-  (mark-round-as-started! round)
-  (go-loop []
+  (publish-state! round @(:state round))
+  (loop []
     (let [move (get-move! round)]
       (if (= move :stop)
         (end-prematurely! round)
@@ -225,6 +225,11 @@
           (if (round-completed? round)
             (publish-completion! round next-state)
             (recur)))))))
+
+(defn- start
+  [round]
+  (mark-round-as-started! round)
+  (go (run-loop! round)))
 
 (defn- create
   []
@@ -257,12 +262,11 @@
   (def s3 (update-in s2 [:scores :p1] (constantly (dec win-score))))
   (def s4 (apply-move s3 [:p1 :paper]))
   (def s5 (apply-move s4 [:p2 :spock]))
-  
+
   (apply-move s1 [:p1 :paper])
   (apply-move s1 [:p2 nil])
   (publish-state? s1)
-  (publish-state? s2)
+  (publish-state? s5)
   (apply-move s5 [:p1 :rock])
-  (state->str s1)
-  )
+  (state->str s2))
 

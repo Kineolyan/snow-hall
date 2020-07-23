@@ -10,13 +10,13 @@
 
 (def resources (ref '()))
 
-(defn save-resource 
+(defn save-resource
   ([f] (save-resource "<unknown>" f))
   ([name f]
    (dosync
     (alter resources (partial cons {:name name ::destroyer f})))))
 
-(defn reload 
+(defn reload
   []
   (integration.story/clean-server)
   (dosync
@@ -28,13 +28,14 @@
 (defn run-my-tests
   ([] (run-my-tests false))
   ([all]
-   (let [expr (if all  
-                #"snow-hall\..+-test|integration\..+-test"  
+   (let [expr (if all
+                #"snow-hall\..+-test|integration\..+-test"
                 #"snow-hall\..+-test")
-         namespaces (->> (all-ns) 
-                         (map ns-name) 
-                         (map str) 
-                         (filter (partial re-matches expr)) (map symbol))]
+         namespaces (->> (all-ns)
+                         (map ns-name)
+                         (map str)
+                         (filter (partial re-matches expr))
+                         (map symbol))]
      (apply test/run-tests namespaces))))
 
 (def ze-server (atom nil))

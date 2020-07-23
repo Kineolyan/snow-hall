@@ -46,3 +46,26 @@
    (str "/rounds/")
    {"user" (authenticate creator)
     "gathering" (gathering "id")}))
+
+(defn consume-all-messages
+  "Consumes all messages for a given player and returns them."
+  [round player]
+  (s/get
+   (str "/rounds/" round "/messages")
+   {"Authorization" (auth-header player)}))
+
+(defn wait-for-next-messages
+  "Waits for about 1s for n messages to be available for player in round."
+  [round player n]
+  (loop [i 0 received []]
+    (let [msgs (s/get
+                (str "/rounds/" round "/messages")
+                {"Authorization" (auth-header player)})
+          rcv (concat received msgs)]
+      (when (>= i 100)
+        (throw (AssertionError. (str "Too many iterations without all messages. Got: " rcv))))
+      (condp #(%1 %2 n) (count rcv)
+        = rcv
+        > (throw (AssertionError. (str "Too many messages: " rcv)))
+        < (do (Thread/sleep 10)
+              (recur (inc i) rcv))))))
