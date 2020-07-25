@@ -1,16 +1,17 @@
 (ns snow-hall.games.seq-chan
   (:require [clojure.core.async :refer [chan]]
-            [clojure.core.async.impl.protocols :as protocols]))
+            [clojure.core.async.impl.protocols :as protocols]
+            [clojure.test :refer [is]]))
 
 (defn create-cell
   [owners]
-  {:pre (seq owners)}
-  (ref {:seq (cycle owners)
-        :_n (count owners)
+  {:pre [(coll? owners) (seq owners)]}
+  (ref {:nexts (rest owners)
         :owner (first owners)}))
 
 (defn fill-cell!
   [cell k v]
+  {:pre [(some? v)]}
   (dosync 
    (let [{:keys [owner content]} @cell]
      (when (and (nil? content) (= owner k))
@@ -22,10 +23,11 @@
 
 (defn move-to-next
   [state]
-  (let [[owner & remaining] (:seq state)]
+  (let [{[next-owner & remaining] :nexts
+         current-owner :owner} state]
     (assoc state
-           :owner owner
-           :seq remaining)))
+           :owner next-owner
+           :nexts (concat remaining (list current-owner)))))
 
 (defn reset-to-next
   [state]
