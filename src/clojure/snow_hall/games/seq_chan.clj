@@ -1,7 +1,6 @@
 (ns snow-hall.games.seq-chan
   (:require [clojure.core.async :refer [chan]]
-            [clojure.core.async.impl.protocols :as protocols]
-            [clojure.test :refer [is]]))
+            [clojure.core.async.impl.protocols :as protocols]))
 
 (defn create-cell
   [owners]
@@ -10,6 +9,7 @@
         :owner (first owners)}))
 
 (defn fill-cell!
+  "Fills the current cell with a value, provided the key k is the current owner."
   [cell k v]
   {:pre [(some? v)]}
   (dosync 
@@ -33,7 +33,9 @@
   [state]
   (-> state reset-cell move-to-next))
 
-(defn empty-cell!
+(defn consume-cell!
+  "Consumes the content of the cell, returning the value and moving to the next owner.
+  This is conditioned by k being the current owner."
   [cell k]
   (dosync
    (let [{:keys [owner content]} @cell]
@@ -50,7 +52,7 @@
           (some? content))))
   (remove!
     [this]
-    (empty-cell! cell k))
+    (consume-cell! cell k))
   (add!*
     [this v]
     (fill-cell! cell k v)
