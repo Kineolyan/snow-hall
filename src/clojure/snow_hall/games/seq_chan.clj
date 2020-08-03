@@ -12,7 +12,7 @@
   "Fills the current cell with a value, provided the key k is the current owner."
   [cell k v]
   {:pre [(some? v)]}
-  (dosync 
+  (dosync
    (let [{:keys [owner content]} @cell]
      (when (and (nil? content) (= owner k))
        (alter cell assoc :content v)))))
@@ -58,14 +58,17 @@
     (fill-cell! cell k v)
     this)
   (close-buf! [this])
+  clojure.lang.Counted
+  (count 
+   [this]
+   (if (protocols/full? this) 1 0))
   clojure.lang.IDeref
   (deref
     [this]
     nil))
 
-(defn create-buffer
-  [])
-
-(defn make-chan
-  [n]
-  (repeat n nil))
+(defn make-chans
+  [owners]
+  (let [cell (create-cell owners)
+        buffers (map #(SequentialBuffer. cell %) owners)]
+    (map chan buffers)))
