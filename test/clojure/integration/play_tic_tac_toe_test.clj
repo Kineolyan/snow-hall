@@ -4,14 +4,9 @@
                                         auth-header
                                         create-visitors
                                         create-gathering
-                                        start-round]]
+                                        start-round
+                                        consume-all-messages]]
             [clojure.test :refer (is)]))
-
-(defn consume-all-messages
-  [round player]
-  (s/get
-   (str "/rounds/" round "/messages")
-   {"Authorization" (auth-header player)}))
 
 (defn wait-for-next-messages
   [round player n]

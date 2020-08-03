@@ -9,6 +9,7 @@
    [snow-hall.games.round]
    [snow-hall.games.library.sample]
    [snow-hall.games.library.tic-tac-toe]
+   [snow-hall.games.library.rpsls]
    [snow-hall.hall.butler]
    [snow-hall.hall.visitor]
    [snow-hall.rest.games]
@@ -19,12 +20,11 @@
 
 (defn ping-request [_req]
   {:status  200
-    :headers {"Content-Type" "text/plain"}
-    :body "UP"})
+   :headers {"Content-Type" "text/plain"}
+   :body "UP"})
 
 (def basic-routes
-  [
-    (cmpj/GET "/ping" [] ping-request)])
+  [(cmpj/GET "/ping" [] ping-request)])
 
 (defn create-game-store
   []
@@ -35,6 +35,7 @@
         :player-count 2})
       (game-mgr/add-game snow-hall.games.library.sample/game-definition)
       (game-mgr/add-game snow-hall.games.library.tic-tac-toe/game-definition)
+      (game-mgr/add-game snow-hall.games.library.rpsls/game-definition)
       (ref :validator snow-hall.games.manager/validate-fn)))
 
 (defn create-visitor-registry
@@ -60,7 +61,7 @@
    :rounds (create-round-registry)})
 
 (defn create-app-routes
-  [context] 
+  [context]
   (apply cmpj/routes (concat
                       basic-routes
                       (snow-hall.rest.games/create-routes context)
@@ -85,14 +86,14 @@
 (defn start-server
   [port dev]
   (-> (create-context)
-      (#(do 
+      (#(do
           (when dev (save-context %))
           %))
       create-app-routes
       create-handler
       (#(if dev (reload/wrap-reload %) %))
       (server/run-server {:port port})
-      (#(fn [] 
+      (#(fn []
           (when dev (save-context nil))
           (shutdown-agents)
           (%)))))
