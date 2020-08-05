@@ -20,11 +20,12 @@
 
 (defn create-gathering
   "Creates a new gathering from a creator and registers the other players."
-  [{:keys [creator game-name others]}]
+  [{:keys [creator game-name others options]}]
   (let [gathering  (s/post
                     "/gatherings"
                     {"user" (authenticate creator)
-                     "game-id" game-name})
+                     "game-id" game-name
+                     "options" (or options {})})
         _ (is gathering)
         tokens (->> (gathering "players")
                     (map #(get % "token"))

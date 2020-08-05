@@ -1,8 +1,8 @@
 (ns snow-hall.hall.butler
-  (:require
-   [clojure.spec.alpha :as s]
-   [snow-hall.uuid :as uuids]
-   [snow-hall.validate :refer [create-validation]]))
+  (:require    [clojure.spec.alpha :as s]
+               [snow-hall.uuid :as uuids]
+               [snow-hall.validate :refer [create-validation]]
+               [snow-hall.games.game :as games]))
 
 (s/def ::id string?)
 (s/def ::token uuids/uuid?)
@@ -30,18 +30,22 @@
 (defn create-player-list
   [player-count first-player]
   (reduce
-    (fn [acc _] (conj acc {:token (uuids/random-uuid)}))
-    [(:uuid first-player)]
-    (range (dec player-count))))
+   (fn [acc _] (conj acc {:token (uuids/random-uuid)}))
+   [(:uuid first-player)]
+   (range (dec player-count))))
 
 (defn create-gathering
   "Creates a new game for a user"
-  [{:keys [tab user game]}]
+  [{:keys [tab user game options]}]
+  ; TODO we must use the options to find the player count
   (let [game-id (generate-id tab)
-        players (create-player-list (:player-count game) user)]
+        clean-options (games/sanitize-options game options)
+        player-count (games/get-player-count game options)
+        players (create-player-list player-count user)]
     {:id game-id
      :game (:name game)
-     :players players}))
+     :players players
+     :options clean-options}))
 
 (defn register-gathering
   "Registers a new gathering to the tab."

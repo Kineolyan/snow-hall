@@ -10,3 +10,11 @@
   (ios [e] "Returns the arrays of IOs for each player in the Round.
   Each IO is made of :in chan for player move and :out chan for Round messages." )
   (stop [e] "Stops the round."))
+
+(defn sanitize-options
+  [game options]
+  (throw (UnsupportedOperationException.)))
+
+(defn get-player-count
+  [game options]
+  (throw (UnsupportedOperationException.)))
