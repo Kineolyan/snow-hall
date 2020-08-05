@@ -93,4 +93,18 @@
         (is (async/offer! c i) "cannot write")
         (is (= (async/poll! c) i) "cannot read")))))
 
+(deftest chans-with-alts
+  (testing "alts on the active chan"
+    (let [[c1 c2] (m/make-chans [:a :b])]
+      (is (async/offer! c1 1) "value not provided")
+      (let [[m c] (async/alts!! [c1 c2])]
+        (is (= 1 m))
+        (is (= c c1)))))
+  
+  (testing "alts without data"
+    (let [[c1 c2] (m/make-chans [:a :b])
+          [_ c] (async/alts!! [c1 c2 (async/timeout 50)])]
+      (is (not= c c1))
+      (is (not= c c2)))))
+
 (clojure.test/run-tests *ns*)

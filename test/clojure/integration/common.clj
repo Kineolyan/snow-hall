@@ -57,15 +57,20 @@
 (defn wait-for-next-messages
   "Waits for about 1s for n messages to be available for player in round."
   [round player n]
+  (println "start>")
   (loop [i 0 received []]
     (let [msgs (s/get
                 (str "/rounds/" round "/messages")
                 {"Authorization" (auth-header player)})
           rcv (concat received msgs)]
+      (doseq [m rcv]
+        (print player)
+        (print " > ")
+        (println m))
       (when (>= i 100)
         (throw (AssertionError. (str "Too many iterations without all messages. Got: " rcv))))
       (condp #(%1 %2 n) (count rcv)
         = rcv
-        > (throw (AssertionError. (str "Too many messages: " rcv)))
+        > (throw (AssertionError. (str "Too many messages: " (doall rcv))))
         < (do (Thread/sleep 10)
               (recur (inc i) rcv))))))

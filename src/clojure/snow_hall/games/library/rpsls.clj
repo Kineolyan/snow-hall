@@ -1,6 +1,7 @@
 (ns snow-hall.games.library.rpsls
   (:require [clojure.core.async :as async :refer [chan go alts!! >!! close!]]
-            [snow-hall.games.game :refer [GameFactory RoundEngine]]))
+            [snow-hall.games.game :refer [GameFactory RoundEngine]]
+            [snow-hall.games.seq-chan :as seq-chan]))
 
 (def win-matrix
   {:rock #{:scissors :lizard}
@@ -21,10 +22,6 @@
     (when (valid-sign? sign) sign)))
 
 ; -- Creating the rounds and piping
-
-(defn create-io
-  []
-  {:in (chan 1) :out (chan 1)})
 
 (defrecord RpclsRound [ios stop state]
   RoundEngine
@@ -215,8 +212,10 @@
 (defn run-loop!
   [round]
   (publish-state! round @(:state round))
+  (println "init with state")
   (loop []
     (let [move (get-move! round)]
+      (println (str "move is " move) )
       (if (= move :stop)
         (end-prematurely! round)
         (let [next-state (compute-next-state! round move)]
@@ -233,10 +232,13 @@
 
 (defn- create
   []
-  (RpclsRound.
-   (repeatedly 2 create-io)
-   (chan 1)
-   (atom (create-state))))
+  (let [ins (seq-chan/make-chans [:p1 :p2])
+        outs (repeatedly 2 (partial chan 1))
+        ios (map #(hash-map :in %1 :out %2) ins outs)]
+    (RpclsRound.
+     ios
+     (chan 1)
+     (atom (create-state)))))
 
 (def game-factory
   (reify

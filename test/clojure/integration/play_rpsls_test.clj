@@ -78,3 +78,7 @@
                guest-state (get-state round guest)]
            (is (= (creator-state "content") "LOSS BY POINTS"))
            (is (= (guest-state "content") "WIN BY POINTS"))))))
+
+(comment 
+  (do (integration.story/clean-server)
+      (clojure.test/run-tests 'integration.play-rpsls-test)))
