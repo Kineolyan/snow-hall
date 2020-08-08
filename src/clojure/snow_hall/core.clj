@@ -29,10 +29,6 @@
 (defn create-game-store
   []
   (-> (game-mgr/create-store)
-      (game-mgr/add-game
-       {:name "Code4Life"
-        :java "code4life.Referee"
-        :player-count 2})
       (game-mgr/add-game snow-hall.games.library.sample/game-definition)
       (game-mgr/add-game snow-hall.games.library.tic-tac-toe/game-definition)
       (game-mgr/add-game snow-hall.games.library.rpsls/game-definition)

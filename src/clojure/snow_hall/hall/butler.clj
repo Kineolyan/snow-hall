@@ -36,16 +36,16 @@
 
 (defn create-gathering
   "Creates a new game for a user"
-  [{:keys [tab user game options]}]
+  [{:keys [tab user game user-options]}]
   ; TODO we must use the options to find the player count
   (let [game-id (generate-id tab)
-        clean-options (games/sanitize-options game options)
-        player-count (games/get-player-count game options)
+        game-options (games/read-options game user-options)
+        player-count (games/get-player-count game game-options)
         players (create-player-list player-count user)]
     {:id game-id
-     :game (:name game)
+     :game (games/get-name game)
      :players players
-     :options clean-options}))
+     :options game-options}))
 
 (defn register-gathering
   "Registers a new gathering to the tab."

@@ -1,17 +1,23 @@
 (ns snow-hall.games.library.sample
   (:require [clojure.core.async :as async :refer [chan go <! >! close!]]
-            [snow-hall.games.game :refer [GameFactory RoundEngine]]))
+            [snow-hall.games.game :as game]))
 
 (defn create-io
   []
   {:in (chan 1) :out (chan 1)})
 
 (defrecord SampleRound [ios stop]
-  RoundEngine
+  game/RoundEngine
   (ios [e] ios)
   (stop [e] (compare-and-set! stop false true)))
 
 (def end-message "-THE END-")
+
+(defn- create
+  []
+  (SampleRound.
+   (repeatedly 2 create-io)
+   (atom false)))
 
 (defn- start
   [{:keys [ios stop]}]
@@ -28,24 +34,16 @@
             (close! (:out io))
             (close! (:in io)))))))
 
-(defn- create
+(defn create-and-start
   []
-  (SampleRound.
-   (repeatedly 2 create-io)
-   (atom false)))
-
-(def game-factory
-  (reify
-    GameFactory
-    (create-engine [f]
-      (let [round (create)]
-        (start round)
-        round))))
+  (let [round (create)]
+    (start round)
+    round))
 
 (def game-definition
-  {:name "Sample"
-   :player-count 2
-   :factory game-factory})
-
-(comment
-  (snow-hall.games.game/create-engine game-factory))
+  (reify
+    game/Game
+    (get-specs [this] {:name "Sample"
+                      :players {:exact 2}})
+    (get-player-count [this option] 2)
+    (create-engine [this options] (create-and-start))))

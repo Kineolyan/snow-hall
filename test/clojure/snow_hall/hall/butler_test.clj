@@ -1,7 +1,8 @@
 (ns snow-hall.hall.butler-test
   (:require
-    [clojure.test :refer [deftest testing is]]
-    [snow-hall.hall.butler :as m]))
+   [clojure.test :refer [deftest testing is]]
+   [snow-hall.hall.butler :as m]
+   [snow-hall.games.game :as game]))
 
 (deftest create-tab []
   (testing "creates an empty tab"
@@ -10,19 +11,27 @@
 (deftest generate-id []
   (testing "can generate ids without collision"
     (let [tab (reduce
-                (fn [acc i] (assoc acc (m/generate-id acc) i))
-                {}
-                (range 100))]
+               (fn [acc i] (assoc acc (m/generate-id acc) i))
+               {}
+               (range 100))]
       (is (= (count tab) 100)))))
+
+(def dummy-game
+  (reify game/Game
+    (get-specs [this] {:name "g"
+                      :players {:exact 2}})
+    (read-options [this options] {})
+    (get-player-count [this options] 3)
+    (create-engine [this options] (throw (UnsupportedOperationException.)))))
 
 (deftest create-gathering []
   (let [tab {}
         user {:uuid 1}
-        game {:name "g" :player-count 3}
-        new-gathering (m/create-gathering 
-                  {:tab tab
-                   :user user
-                   :game game})
+        game dummy-game
+        new-gathering (m/create-gathering
+                       {:tab tab
+                        :user user
+                        :game game})
         updated (m/register-gathering tab new-gathering)]
     (testing "registers a new gathering into the tab"
       (is (= (count updated) 1))
@@ -59,7 +68,7 @@
   (let [gathering (m/create-gathering
                    {:tab {}
                     :user {:uuid 1}
-                    :game {:name "g" :player-count 3}})
+                    :game dummy-game})
         initial-tab (m/register-gathering {} gathering)
         gathering (first (vals initial-tab))
         updated-tab (m/join-gathering
@@ -85,10 +94,10 @@
 
     (testing "can consume any item"
       (let [other-tab (m/join-gathering
-                        {:tab initial-tab
-                         :user {:uuid 3}
-                         :gathering-id (:id gathering)
-                         :token ((comp :token last :players) gathering)})
+                       {:tab initial-tab
+                        :user {:uuid 3}
+                        :gathering-id (:id gathering)
+                        :token ((comp :token last :players) gathering)})
             updated-gathering (get other-tab (:id gathering))]
         (is (some #{3} (:players updated-gathering)))))))
 
@@ -96,7 +105,7 @@
   (let [gathering (m/create-gathering
                    {:tab {}
                     :user {:uuid 1}
-                    :game {:name "g" :player-count 3}})
+                    :game dummy-game})
         initial-tab (m/register-gathering {} gathering)
         id (:id gathering)
         updated-tab (m/join-gathering
@@ -111,7 +120,7 @@
                    :token (:token (nth (:players gathering) 1))})]
 
     (testing "returns all free tokens at start"
-      (is (= (m/get-invit-tokens {:tab initial-tab 
+      (is (= (m/get-invit-tokens {:tab initial-tab
                                   :gathering-id id})
              (map :token (rest (:players gathering))))))
 
@@ -123,3 +132,5 @@
     (testing "returns an empty list when the game is complete"
       (is (empty? (m/get-invit-tokens {:tab full-tab
                                        :gathering-id id}))))))
+
+
