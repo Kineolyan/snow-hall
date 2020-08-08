@@ -25,7 +25,7 @@
 (defn get-player-range
   [game]
   {:post [(some? %)]}
-  (-> game (get-specs)( :players)))
+  (-> game (get-specs)( :player-count)))
 
 (defprotocol RoundEngine
   (ios [e] "Returns the arrays of IOs for each player in the Round.

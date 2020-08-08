@@ -44,6 +44,7 @@
   (reify
     game/Game
     (get-specs [this] {:name "Sample"
-                      :players {:exact 2}})
+                      :player-count {:exact 2}})
+    (read-options [this options] {})
     (get-player-count [this option] 2)
     (create-engine [this options] (create-and-start))))

@@ -51,7 +51,7 @@
                gathering (create-gathering {:creator creator
                                             :game-name "Rock Paper Scissors Lizard Spock"
                                             :others [guest]
-                                            :options {:target-score 3}})]
+                                            :options {"win-score" 3}})]
            (swap! context assoc :gathering gathering)))
    (step "start the game"
          (let [{:keys [gathering creator guest]} @context
@@ -62,14 +62,12 @@
            (wait-for-next-messages round-id guest 1)))
    (step "play one turn"
          (let [{:keys [round creator guest]} @context]
-           (play-and-check round {creator "rock" guest "paper"} "0|1;rock|paper")))
+           (play-and-check round {creator "rock" guest "paper"} "0/3|1/3;rock|paper")))
    (step "play to guest victory"
          (let [{:keys [round creator guest]} @context]
-          (play-and-check round {creator "rock" guest "rock"} "0|1;rock|rock")
-           (play-and-check round {creator "spock" guest "rock"} "1|1;spock|rock")
-           (play-and-check round {creator "spock" guest "paper"} "1|2;spock|paper")
-           (play-and-check round {creator "spock" guest "paper"} "1|3;spock|paper")
-           (play-and-check round {creator "spock" guest "paper"} "1|4;spock|paper")))
+           (play-and-check round {creator "rock" guest "rock"} "0/3|1/3;rock|rock")
+           (play-and-check round {creator "spock" guest "rock"} "1/3|1/3;spock|rock")
+           (play-and-check round {creator "spock" guest "paper"} "1/3|2/3;spock|paper")))
    (step "play victory move"
          (let [{:keys [round creator guest]} @context]
            (play round {creator "scissors" guest "spock"})))

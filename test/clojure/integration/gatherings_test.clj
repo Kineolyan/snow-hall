@@ -12,7 +12,7 @@
                   :guest u2)))
    (step "find games to play"
          (let [games (s/get "/games")
-               one-game (first (filter #(= 2 (%1 "player-count")) games))]
+               one-game (first (filter #(= 2 (get-in %1 ["player-count" "exact"])) games))]
            (is one-game)
            (swap! context assoc
                   :one-game one-game)))
@@ -23,7 +23,7 @@
                           {"user" {"uuid" (creator "uuid")
                                    "token" (creator "token")}
                            "game-id" (one-game "name")})]
-           (is gathering)
+           (is (some? gathering))
            (swap! context assoc :gathering gathering)))
    (step "finds invits"
          (let [{:keys [gathering creator]} @context

@@ -19,7 +19,7 @@
 (def dummy-game
   (reify game/Game
     (get-specs [this] {:name "g"
-                      :players {:exact 2}})
+                      :player-count {:exact 2}})
     (read-options [this options] {})
     (get-player-count [this options] 3)
     (create-engine [this options] (throw (UnsupportedOperationException.)))))

@@ -37,7 +37,6 @@
 (defn create-gathering
   "Creates a new game for a user"
   [{:keys [tab user game user-options]}]
-  ; TODO we must use the options to find the player count
   (let [game-id (generate-id tab)
         game-options (games/read-options game user-options)
         player-count (games/get-player-count game game-options)

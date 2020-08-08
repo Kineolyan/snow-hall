@@ -245,10 +245,11 @@
   (reify
     game/Game
     (get-specs [this] {:name "Rock Paper Scissors Lizard Spock"
-                       :players {:exact 2}})
+                       :player-count {:exact 2}})
     (read-options 
-      [this options] 
-      {:win-score (get options "a" 5)})
+      [this options]
+     (println (str "opts " options)) 
+      {:win-score (get options "win-score" 5)})
     (get-player-count [this options] 2)
     (create-engine [this options] (create-and-start options))))
 
