@@ -109,7 +109,7 @@
   [handle dev]
   (fn []
     (tear-down-stack dev)
-    (shutdown-agents)
+    ;; (shutdown-agents) Do not shutdown pools as we cannot restart them in REPL
     (handle)))
 
 (defn start-server
