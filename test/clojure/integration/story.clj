@@ -12,7 +12,7 @@
 
 (defn ensure-server 
   []
-  (swap! server #(if (nil? %1) (start-server port false) %1)))
+  (swap! server #(or % (start-server port true))))
 
 (defn clean-server
   []

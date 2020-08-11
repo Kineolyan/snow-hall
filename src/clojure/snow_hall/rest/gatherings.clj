@@ -45,7 +45,7 @@
     (rejected {:status 404})))
 
 (defn with-options
-  [req & _]
+  [req & _] 
   (resolved (or (get-in req [:body "options"]) {})))
 
 (defn list-gathering-request
@@ -60,8 +60,9 @@
                        {:tab @tab
                         :user visitor
                         :game game
-                        :options options})]
+                        :user-options options})]
     (alter tab butler/register-gathering new-gathering)
+    (println (str "created: " new-gathering))
     {:status 200
      :body new-gathering}))
 

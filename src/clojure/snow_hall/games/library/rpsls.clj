@@ -52,8 +52,9 @@
   (str (:p1 scores) "/" win-score "|" (:p2 scores) "/" win-score ";" (some-> last-signs :p1 name) "|" (some-> last-signs :p2 name)))
 
 (defn win?
-  [{:keys [win-score scoreboard]} player]
-  (= (get scoreboard player) win-score))
+  [{:keys [win-score scores]} player]
+  (println (str player " -> " win-score " <> " scores))
+  (= (get scores player) win-score))
 
 (defn set-sign-in-state
   [state player-idx sign]
@@ -247,9 +248,8 @@
     (get-specs [this] {:name "Rock Paper Scissors Lizard Spock"
                        :player-count {:exact 2}})
     (read-options 
-      [this options]
-     (println (str "opts " options)) 
-      {:win-score (get options "win-score" 5)})
+     [this options] 
+     {:win-score (get options "win-score" 5)})
     (get-player-count [this options] 2)
     (create-engine [this options] (create-and-start options))))
 
