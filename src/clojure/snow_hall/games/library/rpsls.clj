@@ -53,7 +53,6 @@
 
 (defn win?
   [{:keys [win-score scores]} player]
-  (println (str player " -> " win-score " <> " scores))
   (= (get scores player) win-score))
 
 (defn set-sign-in-state

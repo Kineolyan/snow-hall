@@ -62,7 +62,6 @@
                         :game game
                         :user-options options})]
     (alter tab butler/register-gathering new-gathering)
-    (println (str "created: " new-gathering))
     {:status 200
      :body new-gathering}))
 
