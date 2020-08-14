@@ -1,11 +1,13 @@
 (ns snow-hall.rest.games
   (:require [compojure.core :as http]
-            [snow-hall.games.manager :as mgr]))
+            [snow-hall.games.manager :as mgr]
+            [snow-hall.games.game :as game]))
 
-(defn game->json 
+(defn game->json
   "Exports a given game, dropping the unwanted attributes"
   [game]
-  (into {} (filter (comp #{:name :player-count} first) game)))
+  {:name (game/get-name game)
+   :player-count (game/get-player-range game)})
 
 (defn list-games-request [game-registry _req]
   (let [games (mgr/list-games @game-registry)
@@ -17,7 +19,3 @@
   [{:keys [games]}]
   [(http/context "/games" []
      (http/GET "/" [] (partial list-games-request games)))])
-
-(comment
-  (def some-game {:name "A" :player-count 1 :other "<hidden>"})
-  (game->json some-game))

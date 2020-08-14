@@ -29,10 +29,6 @@
 (defn create-game-store
   []
   (-> (game-mgr/create-store)
-      (game-mgr/add-game
-       {:name "Code4Life"
-        :java "code4life.Referee"
-        :player-count 2})
       (game-mgr/add-game snow-hall.games.library.sample/game-definition)
       (game-mgr/add-game snow-hall.games.library.tic-tac-toe/game-definition)
       (game-mgr/add-game snow-hall.games.library.rpsls/game-definition)
@@ -79,24 +75,48 @@
       (json/wrap-json-response {:keywords? true :bigdecimals? true})
       (ring-defaults/wrap-defaults app-site-config)))
 
+(defn create-stack
+  [context]
+  (-> context create-app-routes create-handler))
+
 (def dev-context nil)
-(defn- save-context
+
+(defn set-in-var!
+  [key value]
+  (alter-var-root key (constantly value)))
+(defn- save-context!
   [ctx]
-  (alter-var-root #'dev-context (constantly ctx)))
+  (set-in-var! #'dev-context ctx))
+(defn- reset-context!
+  []
+  (save-context! nil))
+
+(defn setup-stack
+  [dev]
+  (let [context (create-context)
+        stack (create-stack context)]
+    (when dev
+      (save-context! context))
+    (if dev
+      (reload/wrap-reload stack)
+      stack)))
+(defn tear-down-stack
+  [dev]
+  (when dev
+    (reset-context!)))
+
+(defn create-destroy-fn
+  [handle dev]
+  (fn []
+    (tear-down-stack dev)
+    ;; (shutdown-agents) Do not shutdown pools as we cannot restart them in REPL
+    (handle)))
+
 (defn start-server
   [port dev]
-  (-> (create-context)
-      (#(do
-          (when dev (save-context %))
-          %))
-      create-app-routes
-      create-handler
-      (#(if dev (reload/wrap-reload %) %))
-      (server/run-server {:port port})
-      (#(fn []
-          (when dev (save-context nil))
-          (shutdown-agents)
-          (%)))))
+  (let [stack (setup-stack dev)
+        server-handle (server/run-server stack {:port port})]
+    (create-destroy-fn server-handle dev)))
 
 (defn -main
   "Starts the Game Server"
@@ -104,3 +124,4 @@
   (let [port (Integer/getInteger "PORT" 3000)]
     (start-server port false)
     (println (str "Running server at http:/127.0.0.1:" port "/"))))
+

@@ -1,6 +1,6 @@
 (ns snow-hall.games.library.tic-tac-toe
   (:require [clojure.core.async :as async :refer [chan go-loop alts! >! close!]]
-            [snow-hall.games.game :refer [GameFactory RoundEngine]]))
+            [snow-hall.games.game :as game]))
 
 (def player-symbols
   {0 "X"
@@ -107,7 +107,7 @@
   {:in (chan 1) :out (chan 1)})
 
 (defrecord TicTacToeRound [ios stop]
-  RoundEngine
+  game/RoundEngine
   (ios [e] ios)
   (stop [e] (async/offer! stop true)))
 
@@ -117,6 +117,12 @@
        (get-positions)
        (map #(or % "-"))
        (apply str)))
+
+(defn- create
+  []
+  (TicTacToeRound.
+   (repeatedly 2 create-io)
+   (chan 1)))
 
 (defn- start
   [{:keys [ios stop]}]
@@ -157,35 +163,29 @@
           (close! (:out io))
           (close! (:in io)))))))
 
-(defn- create
+(defn create-and-start
   []
-  (TicTacToeRound.
-   (repeatedly 2 create-io)
-   (chan 1)))
-
-(def game-factory
-  (reify
-    GameFactory
-    (create-engine [f]
-      (let [round (create)]
-        (start round)
-        round))))
+  (let [round (create)]
+    (start round)
+    round))
 
 (def game-definition
-  {:name "Tic Tac Toe"
-   :player-count 2
-   :factory game-factory})
+  (reify
+    game/Game
+    (get-specs [this] {:name "Tic Tac Toe"
+                      :player-count {:exact 2}})
+    (read-options [this options] nil)
+    (get-player-count [this options] 2)
+    (create-engine [this options] (create-and-start))))
 
 (comment
-  (def round (snow-hall.games.game/create-engine game-factory))
+  (def round (game/create-engine game-definition nil))
   round
   (def in1 ((comp :in first :ios) round))
   (def out1 ((comp :out first :ios) round))
   (def in2 ((comp :in second :ios) round))
   (def out2 ((comp :out second :ios) round))
-  (clojure.core.async/go (while true
-                           (do (println (str "p1 -> " (clojure.core.async/<! out1)))
-                               (println (str "p2 -> " (clojure.core.async/<! out2))))))
+  
   (clojure.core.async/offer! in1 [0 0])
   (clojure.core.async/offer! in2 [0 1])
   (clojure.core.async/offer! in1 [1 0])

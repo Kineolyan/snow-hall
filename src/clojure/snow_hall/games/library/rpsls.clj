@@ -1,6 +1,6 @@
 (ns snow-hall.games.library.rpsls
   (:require [clojure.core.async :as async :refer [chan go alts!! >!! close!]]
-            [snow-hall.games.game :refer [GameFactory RoundEngine]]))
+            [snow-hall.games.game :as game]))
 
 (def win-matrix
   {:rock #{:scissors :lizard}
@@ -27,7 +27,7 @@
   {:in (chan 1) :out (chan 1)})
 
 (defrecord RpclsRound [ios stop state]
-  RoundEngine
+  game/RoundEngine
   (ios [e] ios)
   (stop [e] (async/offer! stop true)))
 
@@ -38,8 +38,9 @@
   {:p1 0 :p2 0})
 
 (defn create-state
-  []
+  [{:keys [win-score]}]
   {:scores (create-scoreboard)
+   :win-score win-score
    :last-signs nil
    :signs {}
    :status :created
@@ -47,16 +48,12 @@
    :messages nil})
 
 (defn state->str
-  [{:keys [scores last-signs]}]
-  (str (:p1 scores) "|" (:p2 scores) ";" (some-> last-signs :p1 name) "|" (some-> last-signs :p2 name)))
+  [{:keys [scores last-signs win-score]}]
+  (str (:p1 scores) "/" win-score "|" (:p2 scores) "/" win-score ";" (some-> last-signs :p1 name) "|" (some-> last-signs :p2 name)))
 
-(def win-score 5)
 (defn win?
-  [scoreboard i]
-  (let [score  (case i
-                 0 (:p1 scoreboard)
-                 1 (:p2 scoreboard))]
-    (= score win-score)))
+  [{:keys [win-score scores]} player]
+  (= (get scores player) win-score))
 
 (defn set-sign-in-state
   [state player-idx sign]
@@ -85,10 +82,10 @@
          :last-signs signs))
 
 (defn find-winner
-  [{:keys [scores]}]
+  [state]
   (cond
-    (win? scores 0) :p1
-    (win? scores 1) :p2))
+    (win? state :p1) :p1
+    (win? state :p2) :p2))
 
 (defn check-for-victory
   [state]
@@ -226,33 +223,38 @@
             (publish-completion! round next-state)
             (recur)))))))
 
+(defn- create
+  [options]
+  (RpclsRound.
+   (repeatedly 2 create-io)
+   (chan 1)
+   (atom (create-state options))))
+
 (defn- start
   [round]
   (mark-round-as-started! round)
   (go (run-loop! round)))
 
-(defn- create
-  []
-  (RpclsRound.
-   (repeatedly 2 create-io)
-   (chan 1)
-   (atom (create-state))))
-
-(def game-factory
-  (reify
-    GameFactory
-    (create-engine [f]
-      (let [round (create)]
-        (start round)
-        round))))
+(defn create-and-start
+  [options]
+  (let [round (create options)]
+    (start round)
+    round))
 
 (def game-definition
-  {:name "Rock Paper Scissors Lizard Spock"
-   :player-count 2
-   :factory game-factory})
+  (reify
+    game/Game
+    (get-specs [this] {:name "Rock Paper Scissors Lizard Spock"
+                       :player-count {:exact 2}})
+    (read-options 
+     [this options] 
+     {:win-score (get options "win-score" 5)})
+    (get-player-count [this options] 2)
+    (create-engine [this options] (create-and-start options))))
 
 (comment
-  (def round (snow-hall.games.game/create-engine game-factory))
+  (def win-score 5)
+  (def round (snow-hall.games.game/create-engine game-definition {:win-score win-score}))
   round
   (snow-hall.games.game/stop round)
 

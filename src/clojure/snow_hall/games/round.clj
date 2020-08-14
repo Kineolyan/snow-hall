@@ -89,10 +89,10 @@
 
 (defn create-round
   [gathering game]
-  {:pre [(= (:game gathering) (:name game))]}
+  {:pre [(= (:game gathering) (game/get-name game))]}
   (let [player-uuids (:players gathering)
         a-state (create-state-agent player-uuids) 
-        engine (game/create-engine (:factory game))]
+        engine (game/create-engine game (:options gathering))]
     (bind-engine a-state player-uuids engine)
     {:ruid (uuids/random-uuid)
      :game (:game gathering)
@@ -126,10 +126,9 @@
   (def u1 (first us))
   (def u2 (second us))
   (def game sg/game-definition)
-  (:factory game)
-  (def gath {:players us :game (:name game)})
+  (def gath {:players us :game (game/get-name game)})
   ; create the round
-  (def r1 (create-round gath sg/game-definition))
+  (def r1 (create-round gath game))
   (:engine r1)
   (play-round r1 u2 "IDLE")
   (play-round r1 u1 "MOVE 1")

@@ -44,6 +44,10 @@
     (resolved gathering)
     (rejected {:status 404})))
 
+(defn with-options
+  [req & _] 
+  (resolved (or (get-in req [:body "options"]) {})))
+
 (defn list-gathering-request
   [{:keys [tab]} _req]
   {:status 200
@@ -51,11 +55,12 @@
    :body (map format-gathering (vals @tab))})
 
 (defn do-create-gathering
-  [tab visitor game]
+  [tab visitor game options]
   (let [new-gathering (butler/create-gathering
                        {:tab @tab
                         :user visitor
-                        :game game})]
+                        :game game
+                        :user-options options})]
     (alter tab butler/register-gathering new-gathering)
     {:status 200
      :body new-gathering}))
@@ -64,10 +69,11 @@
   [{:keys [visitors tab games]} req]
   (with
    {:visitor (partial with-visitor @visitors req)
-    :game (partial with-game @games req)}
-   (fn [{:keys [visitor game]}]
+    :game (partial with-game @games req)
+    :options (partial with-options req)}
+   (fn [{:keys [visitor game options]}]
      (dosync 
-      (do-create-gathering tab visitor game)))))
+      (do-create-gathering tab visitor game options)))))
 
 (defn get-invit-list
   [gathering visitor]
