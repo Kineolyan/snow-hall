@@ -111,14 +111,12 @@
   (or (some (partial can-play-below? card) down)
       (some (partial can-play-above? card) up)))
 
-(can-play-below? 20 24)
-(can-play-card? (:stacks {:up [97 98] :down [24 3]}) 20)
-
 (defn can-play-with-deck?
   [stacks deck]
   (some (partial can-play-card? stacks) deck))
 
-(can-play-with-deck? (:stacks {:up [97 98] :down [24 3]}) [10 20 30])
+(comment 
+  (can-play-with-deck? {:up [97 98] :down [2 3]} [10 20 30]))
 
 (defn loss?
   [{:keys [current-player decks stacks]}]
