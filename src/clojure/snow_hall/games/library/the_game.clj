@@ -23,22 +23,8 @@
 
 ; -- Creating the rounds and piping
 
-(defn merge-pos-and-input
-  [pos input]
-  (concat [pos] input))
-
-(defn create-input-io
-  [i]
-  (async/map (partial merge-pos-and-input i) [(chan 1)] 1))
-
-(comment
-  (def c (create-input-io 3))
-  (async/offer! c [45 97])
-  (async/poll! c))
-; FIXME not working yet
-
 (defn create-io
-  [i]
+  []
   {:in (chan 1) :out (chan 1)})
 
 (defn create-ios
@@ -198,16 +184,25 @@
   (notify-victory! round (partial = (get-winner-io (:ios round) winner)) messages)
   (end-game! round))
 
-(defn get-move!
-  "Gets the move to play, either as `[player, move]` or :stop to end the game"
-  [{[{in1 :in} {in2 :in}] :ios stop :stop}]
-  (let [[m c] (alts!! [stop in1 in2])]
-    (if
-     (= c stop) :stop
-     [(cond
-        (= c in1) :p1
-        (= c in2) :p2)
-      (str->cards m)])))
+(defn chan-of-value
+  [c value]
+  (async/map (constantly value) [c]))
+
+(defn merge-pos-and-input
+  [pos input]
+  (concat [pos] input))
+
+(defn indexed-inputs
+  "Prefix every input values with the input index"
+  [ins]
+  (map-indexed #(async/map (partial merge-pos-and-input %1) [%2]) ins))
+
+(defn format-ins
+  "Formats all game inputs to produce (<player> <values ...>) or :stop."
+  [{:keys [ios stop]}]
+  (let [stop-c (chan-of-value stop :stop)
+        prefixed-ins (indexed-inputs (map :in ios))]
+    (async/merge (concat [stop-c] prefixed-ins))))
 
 (defn run-loop!
   [round]
