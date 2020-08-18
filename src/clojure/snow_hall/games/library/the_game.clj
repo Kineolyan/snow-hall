@@ -128,6 +128,40 @@
         can-play? (can-play-with-deck? stacks player-deck)]
     (not can-play?)))
 
+(defn are-illegal-moves?
+  [state moves]
+  (throw (UnsupportedOperationException.)))
+
+(defn play-cards-on-stack
+  [state move]
+  (throw (UnsupportedOperationException.)))
+
+(defn remove-played-cards
+  [state move]
+  (throw (UnsupportedOperationException.)))
+
+(defn refill-deck
+  [state]
+  (throw (UnsupportedOperationException.)))
+
+(defn advance-to-next-player
+  [{:keys [decks current-player] :as state}]
+  (let [player-count (count decks)
+        next-index (mod (inc current-player) player-count)]
+    (assoc state :current-player next-index)))
+
+(comment
+  (def s (create-state {:players 3}))
+  (advance-to-next-player s))
+
+(defn play-moves
+  [state moves]
+  (-> state
+      (play-cards-on-stack moves)
+      (remove-played-cards moves)
+      refill-deck
+      advance-to-next-player))
+
 (defn mark-round-as-started!
   [round]
   (swap! (:state round) assoc :status :playing))
@@ -136,10 +170,6 @@
   [round]
   (= :ended
      ((comp :status deref :state) round)))
-
-(defn is-illegal-move?
-  [state move]
-  false)
 
 (defn mark-illegal-turn
   [state player]
@@ -159,7 +189,8 @@
   [{:keys [current-player] :as state} [player moves]]
   (cond
     (not= player current-player) (mark-illegal-turn state player)
-    (is-illegal-move? state moves) (mark-illegal-move state player)))
+    (are-illegal-moves? state moves) (mark-illegal-move state player)
+    :else (play-moves state moves)))
 
 (defn compute-next-state!
   [round move]
