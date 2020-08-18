@@ -1,7 +1,7 @@
 (ns snow-hall.games.library.the-game
   (:require [clojure.string :as str]
             [clojure.spec.alpha :as s]
-            [clojure.core.async :as async :refer [chan go alts!! >!! close!]]
+            [clojure.core.async :as async :refer [chan go >!! close!]]
             [snow-hall.validate :as validate]
             [snow-hall.games.game :as game]))
 
@@ -14,7 +14,9 @@
 (s/def ::stacks (s/map-of :up ::stacks
                           :down ::stacks))
 (s/def ::current-player #(and (<= 0 %) (< % 5)))
-(s/def ::state (s/keys ::req-un [::cards ::decks ::stacks ::current-player]))
+(s/def ::status #{:created :playing :ended})
+(s/def ::message string?)
+(s/def ::state (s/keys ::req-un [::cards ::decks ::stacks ::current-player ::status ::message]))
 
 (def validate-state (validate/create-validation ::state))
 (comment
@@ -75,7 +77,8 @@
         first-player (rand-int players)]
     (assoc state-with-cards
            :stacks stacks
-           :current-player first-player)))
+           :current-player first-player
+           :status :created)))
 
 (def one-state (create-state {:players 3}))
 
@@ -134,17 +137,29 @@
   (= :ended
      ((comp :status deref :state) round)))
 
+(defn is-illegal-move?
+  [state move]
+  false)
+
 (defn mark-illegal-turn
   [state player]
-  nil)
+  (assoc state
+         :status :ended
+         :winner (if (= player :p1) :p2 :p1)
+         :message (str "LOSS: ILLEGAL TURN FOR " player)))
 
 (defn mark-illegal-move
   [state player]
-  nil)
+  (assoc state
+         :status :ended
+         :winner (if (= player :p1) :p2 :p1)
+         :message (str "LOSS: ILLEGAL MOVE OF " player)))
 
 (defn apply-move
-  [{:keys [] :as state} [player move]]
-  nil)
+  [{:keys [current-player] :as state} [player moves]]
+  (cond
+    (not= player current-player) (mark-illegal-turn state player)
+    (is-illegal-move? state moves) (mark-illegal-move state player)))
 
 (defn compute-next-state!
   [round move]
@@ -165,8 +180,8 @@
 
 (defn notify-victory!
   "Notifies all players matched by f of the victory, and others of defeat"
-  [round f messages]
-  nil)
+  [round]
+  (send-message! (:ios round) (:message round)))
 
 (defn end-prematurely!
   [round]
@@ -181,7 +196,7 @@
 
 (defn publish-completion!
   [round {:keys []}]
-  (notify-victory! round (partial = (get-winner-io (:ios round) winner)) messages)
+  (notify-victory! round)
   (end-game! round))
 
 (defn chan-of-value
@@ -205,10 +220,10 @@
     (async/merge (concat [stop-c] prefixed-ins))))
 
 (defn run-loop!
-  [round]
+  [round input-chan]
   (publish-state! round @(:state round))
   (loop []
-    (let [move (get-move! round)]
+    (let [move (async/<! input-chan)]
       (if (= move :stop)
         (end-prematurely! round)
         (let [next-state (compute-next-state! round move)]
@@ -227,7 +242,8 @@
 (defn- start
   [round]
   (mark-round-as-started! round)
-  (go (run-loop! round)))
+  (let [input-chan (format-ins round)]
+    (go (run-loop! round input-chan))))
 
 (defn create-and-start
   [options]
