@@ -61,7 +61,7 @@
         picked (take total cards)
         remaining (drop total cards)]
     {:cards remaining
-     :decks (partition deck-size picked)}))
+     :decks (into [] (partition deck-size picked))}))
 
 (defn create-initial-stacks
   []
@@ -79,8 +79,8 @@
            :stacks stacks
            :current-player first-player
            :status :created)))
-
-(def one-state (create-state {:players 3}))
+(comment
+  (def one-state (create-state {:players 3})))
 
 (defn decks->str
   [decks]
@@ -141,8 +141,20 @@
   (throw (UnsupportedOperationException.)))
 
 (defn refill-deck
-  [state]
-  (throw (UnsupportedOperationException.)))
+  [{:keys [decks current-player cards] :as state}]
+  (let [target-count (get-cards-per-deck (count decks))
+        player-deck (nth decks current-player)
+        missing-count (- target-count (count player-deck))
+        refill-cards (take missing-count cards)]
+    (-> state
+        (update-in [:decks current-player] concat refill-cards)
+        (update-in [:cards] (partial drop missing-count)))))
+
+(comment
+  (def s (update-in one-state [:decks 0] (partial drop 2)))
+  (refill-deck s)
+  (def s-end (update-in s [:cards] #(list (last %))))
+  (refill-deck s-end))
 
 (defn advance-to-next-player
   [{:keys [decks current-player] :as state}]
