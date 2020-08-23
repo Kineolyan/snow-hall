@@ -10,7 +10,7 @@
 (s/def ::deck (s/coll-of ::card))
 (s/def ::decks (s/coll-of ::deck))
 (s/def ::stack-card #(and (pos? %) (<= % 99)))
-(s/def ::stack (s/coll-of ::card))
+(s/def ::stack (s/and (s/coll-of ::card) vector?))
 (s/def ::stacks (s/map-of :up ::stacks
                           :down ::stacks))
 (s/def ::current-player #(and (<= 0 %) (< % 5)))
@@ -93,6 +93,21 @@
   (let [joiner (partial str/join " ")]
     (str (joiner up) " - " (joiner down))))
 
+(defn str->stack
+  [input]
+  (if (or (nil? input) (str/blank? input))
+    []
+    (let [split-values #(str/split % #" ")]
+      (->> input
+           split-values
+           (map #(Integer/parseInt %))))))
+
+(defn str->stacks
+  [input]
+  (let [[u1 u2 d1 d2] (str/split input #"\|")]
+    {:up (mapv str->stack [u1 u2])
+     :down (mapv str->stack [d1 d2])}))
+
 (defn state->str
   [{:keys [current-player stacks decks]}]
   (str current-player "|" (decks->str decks) "|" (stacks->str stacks)))
@@ -128,17 +143,35 @@
         can-play? (can-play-with-deck? stacks player-deck)]
     (not can-play?)))
 
+(defn get-all-played-cards
+  [moves]
+  (flatten (vals moves)))
+
 (defn are-illegal-moves?
   [state moves]
   (throw (UnsupportedOperationException.)))
 
 (defn play-cards-on-stack
-  [state move]
-  (throw (UnsupportedOperationException.)))
+  [getter cards stack]
+  (if (empty? cards)
+    stack
+    (getter cards)))
+
+(defn play-cards-on-stacks
+  [state {:keys [up down]}]
+  (-> state
+      (update-in [:stacks :up] #(mapv (partial play-cards-on-stack (partial apply max)) up %))
+      (update-in [:stacks :down] #(mapv (partial play-cards-on-stack (partial apply min)) down %))))
+
+(defn update-current-player-deck
+  [{:keys [current-player] :as state} f]
+  (update-in state [:decks current-player] f))
 
 (defn remove-played-cards
-  [state move]
-  (throw (UnsupportedOperationException.)))
+  [state moves]
+  (let [played-cards (into #{} (get-all-played-cards moves))
+        update-fn (partial filter (complement played-cards))]
+    (update-current-player-deck state update-fn)))
 
 (defn refill-deck
   [{:keys [decks current-player cards] :as state}]
@@ -147,7 +180,7 @@
         missing-count (- target-count (count player-deck))
         refill-cards (take missing-count cards)]
     (-> state
-        (update-in [:decks current-player] concat refill-cards)
+        (update-current-player-deck (partial concat refill-cards))
         (update-in [:cards] (partial drop missing-count)))))
 
 (comment
@@ -169,7 +202,7 @@
 (defn play-moves
   [state moves]
   (-> state
-      (play-cards-on-stack moves)
+      (play-cards-on-stacks moves)
       (remove-played-cards moves)
       refill-deck
       advance-to-next-player))
